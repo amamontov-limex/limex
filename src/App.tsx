@@ -19,9 +19,6 @@ function Brand() {
 function Topbar() {
   return (
     <div className="fixed right-4 top-4 z-50 flex items-center gap-2">
-      <Button size="icon" variant="ghost" aria-label="Search">
-        <Search className="size-5" />
-      </Button>
       <Button variant="secondary" onClick={() => window.open('https://beta.limex.com', '_blank')}>Log in</Button>
     </div>
   );
@@ -29,23 +26,26 @@ function Topbar() {
 
 // ===== Sidebar (left nav) =====
 const sidebarLinks = [
-  "Research",
-  "For Business",
-  "For Traders",
-  "AI solutions",
-  "Stories",
-  "Company",
-  "News",
+  "Overview",
+  "Education",
+  "Strategies",
+  "Alpha",
+  "Explore",
+  "Careers",
+  "Partnership",
 ];
 
 function Sidebar() {
   return (
     <aside className="fixed left-6 top-6 hidden w-48 lg:block">
       <Brand />
-      <nav className="mt-8 space-y-3 text-sm text-muted-foreground">
+      <nav className="mt-8 space-y-3 text-sm text-black">
         {sidebarLinks.map((l) => (
-          <a key={l} href="#" className="block hover:text-foreground transition-colors">
-            {l}
+          <a key={l} href="#" className="group relative flex items-center justify-between hover:bg-gray-100 hover:text-black transition-colors px-3 py-2 rounded-md">
+            <span className="leading-[1.375rem]">{l}</span>
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-sm">
+              ›
+            </span>
           </a>
         ))}
       </nav>
@@ -157,16 +157,30 @@ function FeaturedGrid() {
     <section className="mt-20 px-3">
       <div className="mx-auto max-w-6xl grid gap-4 md:grid-cols-3">
         <Card 
-          className="md:col-span-2 rounded-3xl overflow-hidden h-[340px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-colors"
+          className="md:col-span-2 rounded-3xl overflow-hidden h-[340px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
           onClick={() => handleCardClick(items[0].link)}
         >
-          <CardContent className="p-6 h-full flex items-center justify-center">
+          {/* Background Image with Blur */}
+          <div className="absolute inset-0">
+            <img 
+              src="/images/abstract-representation-of-a-digital-copilot-in-a-.png" 
+              alt="Platform" 
+              className="w-full h-full object-cover filter blur-[7px] group-hover:blur-[3px] transition-all duration-500"
+            />
+          </div>
+          
+          {/* Content Overlay */}
+          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
             <div className="text-center">
-              <div className="text-5xl font-semibold tracking-tight">{items[0].title}</div>
+              <div className="text-5xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
+                {items[0].title}
+              </div>
             </div>
           </CardContent>
-          <div className="absolute bottom-6 left-6">
-            <p className="text-muted-foreground">{items[0].desc}</p>
+          
+          {/* Description */}
+          <div className="absolute bottom-6 left-6 z-10">
+            <p className="text-white drop-shadow-lg font-medium">{items[0].desc}</p>
           </div>
         </Card>
         
