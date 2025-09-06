@@ -79,7 +79,7 @@ function CenterSearch() {
   return (
     <section className="pt-24">
       <div className="mx-auto max-w-3xl text-center px-3">
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Create first trading strategy</h1>
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Create your investment profile</h1>
         <div className="mt-6 flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm">
           <Input
             className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
@@ -165,7 +165,7 @@ function FeaturedGrid() {
             <img 
               src="/images/abstract-representation-of-a-digital-copilot-in-a-.png" 
               alt="Platform" 
-              className="w-full h-full object-cover filter blur-[7px] group-hover:blur-[3px] transition-all duration-500"
+              className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
             />
           </div>
           
@@ -173,7 +173,7 @@ function FeaturedGrid() {
           <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
             <div className="text-center">
               <div className="text-5xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
-                {items[0].title}
+                AI instruments
               </div>
             </div>
           </CardContent>
@@ -185,73 +185,91 @@ function FeaturedGrid() {
         </Card>
         
         <Card 
-          className="rounded-3xl overflow-hidden h-[340px] bg-gray-100 cursor-pointer hover:bg-gray-200 transition-colors"
+          className="rounded-3xl overflow-hidden h-[340px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
           onClick={() => handleCardClick(items[1].link)}
         >
-          <CardContent className="p-6 h-full flex items-end">
-            <div>
-              <div className="text-2xl font-semibold tracking-tight">{items[1].title}</div>
-              <p className="text-muted-foreground">{items[1].desc}</p>
+          {/* Background Image with Blur */}
+          <div className="absolute inset-0">
+            <img 
+              src="/images/golden-race-cup-big-around-it-lines-like-orbits-wi.png" 
+              alt="Challenges" 
+              className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
+            />
+          </div>
+          
+          {/* Content Overlay */}
+          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
+            <div className="text-center">
+              <div className="text-2xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
+                {items[1].title}
+              </div>
             </div>
           </CardContent>
-        </Card>
-        
-        <Card 
-          className={`rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer transition-all duration-300 ease-out ${
-            hoveredCard === 'research' 
-              ? 'transform scale-105 shadow-xl' 
-              : 'transform scale-100 shadow-sm'
-          }`}
-          onMouseEnter={() => setHoveredCard('research')}
-          onMouseLeave={() => setHoveredCard(null)}
-        >
-          <CardContent className="p-6 h-full flex items-end">
-            <div>
-              <div className="text-xl font-semibold tracking-tight">{items[2].title}</div>
-              <p className="text-muted-foreground">{items[2].desc}</p>
-            </div>
-          </CardContent>
-          <div className={`absolute inset-0 bg-gray-100/90 backdrop-blur-sm flex items-center justify-center transition-all duration-500 ease-out ${
-            hoveredCard === 'research' 
-              ? 'opacity-100 scale-100' 
-              : 'opacity-0 scale-95 pointer-events-none'
-          }`}>
-            <div className={`text-2xl font-semibold text-gray-600 transition-all duration-500 ease-out ${
-              hoveredCard === 'research' 
-                ? 'opacity-100 translate-y-0 scale-100' 
-                : 'opacity-0 translate-y-4 scale-95'
-            }`}>
-              Coming soon
-            </div>
+          
+          {/* Description */}
+          <div className="absolute bottom-6 left-6 z-10">
+            <p className="text-white drop-shadow-lg font-medium">{items[1].desc}</p>
           </div>
         </Card>
         
         <Card 
-          className={`md:col-span-2 rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer transition-all duration-300 ease-out ${
-            hoveredCard === 'traders-journal' 
-              ? 'transform scale-105 shadow-xl' 
-              : 'transform scale-100 shadow-sm'
-          }`}
-          onMouseEnter={() => setHoveredCard('traders-journal')}
-          onMouseLeave={() => setHoveredCard(null)}
+          className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
+          onClick={() => window.open('https://www.promo.limex.com/quantum_course', '_blank')}
         >
-          <CardContent className="p-6 h-full flex items-end">
-            <div>
-              <div className="text-xl font-semibold tracking-tight">{items[3].title}</div>
-              <p className="text-muted-foreground">{items[3].desc}</p>
+          {/* Background Image with Blur */}
+          <div className="absolute inset-0">
+            <img 
+              src="/images/abstract-visualization-of-algorithmic-intelligence (1).png" 
+              alt="Education" 
+              className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
+            />
+          </div>
+          
+          {/* Content Overlay */}
+          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
+            <div className="text-center">
+              <div className="text-xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
+                Education
+              </div>
             </div>
           </CardContent>
-          <div className={`absolute inset-0 bg-gray-100/90 backdrop-blur-sm flex items-center justify-center transition-all duration-500 ease-out ${
-            hoveredCard === 'traders-journal' 
-              ? 'opacity-100 scale-100' 
-              : 'opacity-0 scale-95 pointer-events-none'
-          }`}>
-            <div className={`text-2xl font-semibold text-gray-600 transition-all duration-500 ease-out ${
-              hoveredCard === 'traders-journal' 
-                ? 'opacity-100 translate-y-0 scale-100' 
-                : 'opacity-0 translate-y-4 scale-95'
-            }`}>
-              Coming soon
+          
+          {/* Description */}
+          <div className="absolute bottom-6 left-6 z-10">
+            <p className="text-white drop-shadow-lg font-medium">{items[2].desc}</p>
+          </div>
+        </Card>
+        
+        <Card 
+          className="md:col-span-2 rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
+        >
+          {/* Background Image with Blur */}
+          <div className="absolute inset-0">
+            <img 
+              src="/images/traders-book-has-writing-in-it-and-data-on-the-cen.png" 
+              alt="Traders Journal" 
+              className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
+            />
+          </div>
+          
+          {/* Content Overlay */}
+          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
+            <div className="text-center">
+              <div className="text-xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
+                {items[3].title}
+              </div>
+            </div>
+          </CardContent>
+          
+          {/* Description */}
+          <div className="absolute bottom-6 left-6 z-10">
+            <p className="text-white drop-shadow-lg font-medium">{items[3].desc}</p>
+          </div>
+          
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 ease-out z-20">
+            <div className="text-3xl font-bold text-white drop-shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-out">
+              Coming Soon
             </div>
           </div>
         </Card>
