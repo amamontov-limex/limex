@@ -122,8 +122,6 @@ function CenterSearch() {
 
 // ===== Featured Grid =====
 function FeaturedGrid() {
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
-  
   const items = [
     {
       title: "Platform",
