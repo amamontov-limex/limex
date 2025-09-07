@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, X } from "lucide-react";
 
 // ===== Brand =====
 function Brand() {
@@ -54,15 +54,102 @@ function Sidebar() {
 }
 
 
+// ===== Chat Component =====
+function ChatInterface({ isOpen, onClose, initialMessage }: { isOpen: boolean; onClose: () => void; initialMessage: string }) {
+  const [messages, setMessages] = useState([
+    { id: 1, text: initialMessage, sender: 'user' },
+    { id: 2, text: "I'd be happy to help you with your investment goals! Let me ask you a few questions to better understand your needs.", sender: 'bot' }
+  ]);
+  const [newMessage, setNewMessage] = useState("");
+  const [showMessages, setShowMessages] = useState(false);
+
+  // Обновляем сообщения при изменении initialMessage
+  useEffect(() => {
+    if (initialMessage && initialMessage.trim()) {
+      setMessages([
+        { id: 1, text: initialMessage, sender: 'user' },
+        { id: 2, text: "I'd be happy to help you with your investment goals! Let me ask you a few questions to better understand your needs.", sender: 'bot' }
+      ]);
+    }
+  }, [initialMessage]);
+
+  // Управляем последовательностью анимаций
+  useEffect(() => {
+    if (isOpen) {
+      // Сначала основная форма скрывается (1.5 секунды)
+      // Затем через 1.5 секунды показываем сообщения
+      const timer = setTimeout(() => {
+        setShowMessages(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    } else {
+      setShowMessages(false);
+    }
+  }, [isOpen]);
+
+  const handleSendMessage = () => {
+    if (newMessage.trim()) {
+      const userMessage = { id: messages.length + 1, text: newMessage, sender: 'user' };
+      setMessages(prev => [...prev, userMessage]);
+      setNewMessage("");
+      
+      // Simulate bot response
+      setTimeout(() => {
+        const botResponse = { id: messages.length + 2, text: "Thank you for sharing that information. Let me provide you with some personalized recommendations.", sender: 'bot' };
+        setMessages(prev => [...prev, botResponse]);
+      }, 1000);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl px-3">
+      {/* Messages */}
+      <div className={`space-y-6 mb-6 transition-all duration-1000 ease-in-out ${
+        showMessages ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
+      }`}>
+        {messages.map((message, index) => (
+          <div 
+            key={message.id} 
+            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-2000 ease-in-out ${
+              showMessages 
+                ? 'transform translate-y-0 opacity-100' 
+                : 'transform translate-y-12 opacity-0'
+            }`}
+            style={{
+              transitionDelay: showMessages ? `${index === 0 ? 0 : 1000}ms` : '0ms'
+            }}
+          >
+            <div className="max-w-[80%]">
+              <div className={`px-4 py-3 ${
+                message.sender === 'user' 
+                  ? 'bg-gray-100 text-gray-900 rounded-2xl' 
+                  : 'text-gray-900'
+              }`}>
+                {message.text}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+    </div>
+  );
+}
+
 // ===== Center Search =====
-function CenterSearch() {
+function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsChatOpen: (open: boolean) => void }) {
   const [searchValue, setSearchValue] = useState("");
+  const [chatMessage, setChatMessage] = useState("");
+  const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'user' | 'bot'}>>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [showMessages, setShowMessages] = useState(false);
   
   const chips = ["What do you have?", "What about my portfolio?", "Research", "Challenges", "More"];
   
   const handleSearch = () => {
     if (searchValue.trim()) {
-      window.open('https://beta.limex.com', '_blank');
+      setChatMessage(searchValue);
+      setIsChatOpen(true);
     }
   };
 
@@ -73,55 +160,128 @@ function CenterSearch() {
   };
 
   const handleChipClick = (chipText: string) => {
-    setSearchValue(chipText);
+    setChatMessage(chipText);
+    setIsChatOpen(true);
+    setMessages([
+      { id: 1, text: chipText, sender: 'user' },
+      { id: 2, text: "I'd be happy to help you with your investment goals! Let me ask you a few questions to better understand your needs.", sender: 'bot' }
+    ]);
   };
+
+  const handleSendMessage = () => {
+    if (newMessage.trim()) {
+      const userMessage = { id: messages.length + 1, text: newMessage, sender: 'user' };
+      setMessages(prev => [...prev, userMessage]);
+      setNewMessage("");
+      
+      // Simulate bot response
+      setTimeout(() => {
+        const botResponse = { id: messages.length + 2, text: "Thank you for sharing that information. Let me provide you with some personalized recommendations.", sender: 'bot' };
+        setMessages(prev => [...prev, botResponse]);
+      }, 1000);
+    }
+  };
+
+  // Управляем последовательностью анимаций
+  useEffect(() => {
+    if (isChatOpen) {
+      const timer = setTimeout(() => {
+        setShowMessages(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    } else {
+      setShowMessages(false);
+    }
+  }, [isChatOpen]);
 
   return (
     <section className="pt-24">
       <div className="mx-auto max-w-3xl text-center px-3">
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Create your investment profile</h1>
-        <div className="mt-6 flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm">
-          <Input
-            className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-            placeholder="I want to create conservative portfolio"
-            aria-label="Ask Limex"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-          />
-          <Button 
-            size="icon" 
-            className={`ml-2 rounded-xl transition-colors ${
-              searchValue.trim() 
-                ? 'bg-gray-900 hover:bg-gray-800 text-white' 
-                : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-            }`}
-            aria-label="Go"
-            onClick={handleSearch}
-            disabled={!searchValue.trim()}
-          >
-            <ArrowUpRight className="size-5" />
-          </Button>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          {chips.map((c) => (
-            <Badge 
-              key={c} 
-              variant="secondary" 
-              className="rounded-full px-3 py-1 text-xs cursor-pointer hover:bg-gray-300 transition-colors"
-              onClick={() => handleChipClick(c)}
+        
+        {/* Messages */}
+        {isChatOpen && (
+          <div className="mx-auto max-w-3xl px-3 mt-6">
+            <div className={`space-y-6 mb-6 transition-all duration-1000 ease-in-out ${
+              showMessages ? 'opacity-100' : 'opacity-0'
+            }`}>
+              {messages.map((message, index) => (
+                <div 
+                  key={message.id} 
+                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-2000 ease-in-out ${
+                    showMessages 
+                      ? 'transform translate-y-0 opacity-100' 
+                      : 'transform translate-y-12 opacity-0'
+                  }`}
+                  style={{
+                    transitionDelay: showMessages ? `${index === 0 ? 0 : 1000}ms` : '0ms'
+                  }}
+                >
+                  <div className="max-w-[80%]">
+                    <div className={`px-4 py-3 ${
+                      message.sender === 'user' 
+                        ? 'bg-gray-100 text-gray-900 rounded-2xl text-right' 
+                        : 'text-gray-900 text-left'
+                    }`}>
+                      {message.text}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Search Interface - уезжает вниз при открытии чата */}
+        <div className={`transition-all duration-[1500ms] ease-in-out ${
+          isChatOpen ? 'transform translate-y-[50vh] opacity-100' : 'transform translate-y-0 opacity-100'
+        }`}>
+          <div className="mt-6 flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm">
+            <Input
+              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
+              placeholder={isChatOpen ? "Type your message..." : "What is your investment goal?"}
+              aria-label="Ask Limex"
+              value={isChatOpen ? newMessage : searchValue}
+              onChange={(e) => isChatOpen ? setNewMessage(e.target.value) : setSearchValue(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && (isChatOpen ? handleSendMessage() : handleKeyPress(e))}
+            />
+            <Button 
+              size="icon" 
+              className={`ml-2 rounded-xl transition-colors ${
+                (isChatOpen ? newMessage.trim() : searchValue.trim())
+                  ? 'bg-gray-900 hover:bg-gray-800 text-white' 
+                  : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+              }`}
+              aria-label="Go"
+              onClick={isChatOpen ? handleSendMessage : handleSearch}
+              disabled={!(isChatOpen ? newMessage.trim() : searchValue.trim())}
             >
-              {c}
-            </Badge>
-          ))}
+              <ArrowUpRight className="size-5" />
+            </Button>
+          </div>
+          {!isChatOpen && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              {chips.map((c) => (
+                <Badge 
+                  key={c} 
+                  variant="secondary" 
+                  className="rounded-full px-3 py-1 text-xs cursor-pointer hover:bg-gray-300 transition-colors"
+                  onClick={() => handleChipClick(c)}
+                >
+                  {c}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+      
     </section>
   );
 }
 
 // ===== Featured Grid =====
-function FeaturedGrid() {
+function FeaturedGrid({ isChatOpen }: { isChatOpen: boolean }) {
   const items = [
     {
       title: "Platform",
@@ -152,7 +312,9 @@ function FeaturedGrid() {
   };
 
   return (
-    <section className="mt-20 px-3">
+    <section className={`mt-20 px-3 transition-all duration-[1500ms] ease-in-out ${
+      isChatOpen ? 'transform translate-y-[50vh]' : 'transform translate-y-0'
+    }`}>
       <div className="mx-auto max-w-6xl grid gap-4 md:grid-cols-3">
         <Card 
           className="md:col-span-2 rounded-3xl overflow-hidden h-[340px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
@@ -375,6 +537,8 @@ function Footer() {
 }
 
 export default function App() {
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* top-right controls */}
@@ -386,8 +550,8 @@ export default function App() {
       {/* content */}
       <main className="mx-auto max-w-[980px]">
         <div className="pt-10 lg:hidden px-3"><Brand /></div>
-        <CenterSearch />
-        <FeaturedGrid />
+        <CenterSearch isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />
+        <FeaturedGrid isChatOpen={isChatOpen} />
         <Footer />
       </main>
     </div>
