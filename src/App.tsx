@@ -66,8 +66,10 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
   const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'user' | 'bot', isThinking?: boolean}>>([]);
   const [newMessage, setNewMessage] = useState("");
   const [showMessages, setShowMessages] = useState(false);
+  const [showGoalChips, setShowGoalChips] = useState(false);
   
-  const chips = ["Create trading profile", "What about my portfolio?", "Research", "Challenges", "Products"];
+  const initialChips = ["Find products for you", "What about my portfolio?", "Research", "Challenges", "Products"];
+  const goalChips = ["Copy Trading", "Education", "Backtest my ideas", "AI instruments for trading"];
   
   const handleSearch = () => {
     if (searchValue.trim()) {
@@ -93,6 +95,11 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
           setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
           const botMessage = { id: 2, text: botResponse, sender: 'bot' as const };
           setMessages(prev => [...prev, botMessage]);
+          
+          // Show goal chips if AI asks about primary goal
+          if (botResponse.toLowerCase().includes('primary goal') || botResponse.toLowerCase().includes('what is your')) {
+            setShowGoalChips(true);
+          }
         })
         .catch((error) => {
           console.error('Error getting AI response:', error);
@@ -116,6 +123,11 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
     console.log('🔘 Chip clicked:', chipText);
     setIsChatOpen(true);
     
+    // Hide goal chips if user selects one
+    if (goalChips.includes(chipText)) {
+      setShowGoalChips(false);
+    }
+    
     // Add user message
     const userMessage = { id: 1, text: chipText, sender: 'user' as const };
     setMessages([userMessage]);
@@ -135,6 +147,11 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
         setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
         const botMessage = { id: 2, text: botResponse, sender: 'bot' as const };
         setMessages(prev => [...prev, botMessage]);
+        
+        // Show goal chips if AI asks about primary goal
+        if (botResponse.toLowerCase().includes('primary goal') || botResponse.toLowerCase().includes('what is your')) {
+          setShowGoalChips(true);
+        }
       })
       .catch((error) => {
         console.error('Error getting AI response:', error);
@@ -171,6 +188,11 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
           setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
           const botMessage = { id: messages.length + 2, text: botResponse, sender: 'bot' as const };
           setMessages(prev => [...prev, botMessage]);
+          
+          // Show goal chips if AI asks about primary goal
+          if (botResponse.toLowerCase().includes('primary goal') || botResponse.toLowerCase().includes('what is your')) {
+            setShowGoalChips(true);
+          }
         })
         .catch((error) => {
           console.error('Error getting AI response:', error);
@@ -253,6 +275,20 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
           <div className={`transition-all duration-[2000ms] ease-out ${
             isChatOpen ? 'mt-0' : 'mt-auto'
           }`}>
+          {isChatOpen && showGoalChips && (
+            <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+              {goalChips.map((c) => (
+                <Badge 
+                  key={c} 
+                  variant="secondary" 
+                  className="rounded-full px-4 py-2 text-sm cursor-pointer transition-all duration-200 hover:scale-105 hover:bg-gray-300"
+                  onClick={() => handleChipClick(c)}
+                >
+                  {c}
+                </Badge>
+              ))}
+            </div>
+          )}
           <div className="flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm">
             <Input
               className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
@@ -290,7 +326,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
           </div>
           {!isChatOpen && (
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              {chips.map((c, index) => (
+              {initialChips.map((c, index) => (
                 <Badge 
                   key={c} 
                   variant="secondary" 

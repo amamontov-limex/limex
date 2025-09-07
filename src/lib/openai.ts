@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { SYSTEM_PROMPT } from './content';
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY || import.meta.env.OPENAI_API_KEY || 'dummy-key',
@@ -28,7 +29,7 @@ export async function sendMessageToOpenAI(messages: Array<{role: 'user' | 'assis
       messages: [
         {
           role: "system",
-          content: "You are a helpful AI assistant for Limex, a fintech platform for traders. You help users with investment goals, trading strategies, and platform features. Be concise and professional."
+          content: SYSTEM_PROMPT
         },
         ...messages
       ],
