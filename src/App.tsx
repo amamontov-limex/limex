@@ -201,11 +201,13 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
       <div className="mx-auto max-w-3xl text-center px-3">
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Create your investment profile</h1>
         
-        {/* Chat Container - фиксированная высота 520px */}
-        <div className="h-[520px] flex flex-col">
+        {/* Chat Container - динамическая высота */}
+        <div className={`flex flex-col transition-all duration-[2000ms] ease-out ${
+          isChatOpen ? 'h-[520px]' : 'h-[128px]'
+        }`}>
           {/* Messages */}
           {isChatOpen && (
-            <div className="flex-1 overflow-y-auto px-3 py-4">
+            <div className="flex-1 px-3 py-4">
               <div className={`space-y-6 transition-all duration-1000 ease-in-out ${
                 showMessages ? 'opacity-100' : 'opacity-0'
               }`}>

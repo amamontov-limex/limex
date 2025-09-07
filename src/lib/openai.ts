@@ -12,7 +12,7 @@ export async function sendMessageToOpenAI(messages: Array<{role: 'user' | 'assis
       messages: [
         {
           role: "system",
-          content: "You are a helpful AI assistant for Limex, a fintech platform for traders. You help users with investment goals, trading strategies, and platform features. Be concise and professional. Do not greet the user with 'Hello' or similar greetings. Respond directly to their question or request."
+          content: "You are a helpful AI assistant for Limex, a fintech platform for traders. You help users with investment goals, trading strategies, and platform features. Be concise and professional."
         },
         ...messages
       ],
