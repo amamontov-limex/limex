@@ -1,11 +1,16 @@
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY || 'dummy-key',
   dangerouslyAllowBrowser: true // Only for client-side usage
 });
 
 export async function sendMessageToOpenAI(messages: Array<{role: 'user' | 'assistant', content: string}>): Promise<string> {
+  // Проверяем наличие реального API ключа
+  if (!import.meta.env.VITE_OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY === 'dummy-key') {
+    return "I'm here to help you with your investment and trading questions! However, I need a valid OpenAI API key to provide AI-powered responses. Please add your API key to the environment variables.";
+  }
+
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
