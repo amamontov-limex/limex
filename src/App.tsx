@@ -201,54 +201,56 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
       <div className="mx-auto max-w-3xl text-center px-3">
         <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Create your investment profile</h1>
         
-        {/* Messages */}
-        {isChatOpen && (
-          <div className="mx-auto max-w-3xl px-3 mt-6">
-            <div className={`space-y-6 transition-all duration-1000 ease-in-out ${
-              showMessages ? 'opacity-100' : 'opacity-0'
-            }`}>
-              {messages.map((message, index) => (
-                <div 
-                  key={message.id} 
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-2000 ease-in-out ${
-                    showMessages 
-                      ? 'transform translate-y-0 opacity-100' 
-                      : 'transform translate-y-12 opacity-0'
-                  }`}
-                              style={{
-                                transitionDelay: showMessages ? `${index === 0 ? 0 : 1000}ms` : '0ms'
-                              }}
-                >
-                  <div className="max-w-[80%]">
-                    <div className={`px-4 py-3 ${
-                      message.sender === 'user' 
-                        ? 'bg-gray-100 text-gray-900 rounded-2xl text-right' 
-                        : 'text-gray-900 text-left'
-                    }`}>
-                      {message.isThinking ? (
-                        <div className="flex items-center gap-2">
-                          <span>{message.text}</span>
-                          <div className="flex gap-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+        {/* Chat Container - фиксированная высота 520px */}
+        <div className="h-[520px] flex flex-col">
+          {/* Messages */}
+          {isChatOpen && (
+            <div className="flex-1 overflow-y-auto px-3 py-4">
+              <div className={`space-y-6 transition-all duration-1000 ease-in-out ${
+                showMessages ? 'opacity-100' : 'opacity-0'
+              }`}>
+                {messages.map((message, index) => (
+                  <div 
+                    key={message.id} 
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-2000 ease-in-out ${
+                      showMessages 
+                        ? 'transform translate-y-0 opacity-100' 
+                        : 'transform translate-y-12 opacity-0'
+                    }`}
+                                style={{
+                                  transitionDelay: showMessages ? `${index === 0 ? 0 : 1000}ms` : '0ms'
+                                }}
+                  >
+                    <div className="max-w-[80%]">
+                      <div className={`px-4 py-3 ${
+                        message.sender === 'user' 
+                          ? 'bg-gray-100 text-gray-900 rounded-2xl text-right' 
+                          : 'text-gray-900 text-left'
+                      }`}>
+                        {message.isThinking ? (
+                          <div className="flex items-center gap-2">
+                            <span>{message.text}</span>
+                            <div className="flex gap-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        message.text
-                      )}
+                        ) : (
+                          message.text
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Search Interface - плавная анимация */}
-        <div className={`transition-all duration-[2000ms] ease-out ${
-          isChatOpen ? 'mt-64' : 'mt-8'
-        }`}>
+          {/* Search Interface - всегда внизу */}
+          <div className={`transition-all duration-[2000ms] ease-out ${
+            isChatOpen ? 'mt-0' : 'mt-auto'
+          }`}>
           <div className="flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm">
             <Input
               className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
@@ -302,6 +304,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
       
