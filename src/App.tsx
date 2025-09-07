@@ -307,6 +307,16 @@ function FeaturedGrid({ isChatOpen }: { isChatOpen: boolean }) {
       desc: "Your trading thoughts and more",
       link: null, // No link specified
     },
+    {
+      title: "Alpha Builder",
+      desc: "Intelligent stock selection and portfolio optimization",
+      link: "https://builder.limex.com",
+    },
+    {
+      title: "ZipLime",
+      desc: "The legendary backtester — no setup needed.",
+      link: "https://ziplime.limex.com",
+    },
   ];
 
   const handleCardClick = (link: string | null) => {
@@ -435,6 +445,42 @@ function FeaturedGrid({ isChatOpen }: { isChatOpen: boolean }) {
             <div className="text-3xl font-bold text-white drop-shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-out">
               Coming Soon
             </div>
+          </div>
+        </Card>
+        
+        <Card 
+          className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
+          onClick={() => handleCardClick(items[4].link)}
+        >
+          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
+            <div className="text-center">
+              <div className="text-xl font-semibold tracking-tight text-gray-900 group-hover:scale-105 transition-transform duration-300">
+                {items[4].title}
+              </div>
+            </div>
+          </CardContent>
+          
+          {/* Description */}
+          <div className="absolute bottom-6 left-6 z-10">
+            <p className="text-gray-700 font-medium">{items[4].desc}</p>
+          </div>
+        </Card>
+        
+        <Card 
+          className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
+          onClick={() => handleCardClick(items[5].link)}
+        >
+          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
+            <div className="text-center">
+              <div className="text-xl font-semibold tracking-tight text-gray-900 group-hover:scale-105 transition-transform duration-300">
+                {items[5].title}
+              </div>
+            </div>
+          </CardContent>
+          
+          {/* Description */}
+          <div className="absolute bottom-6 left-6 z-10">
+            <p className="text-gray-700 font-medium">{items[5].desc}</p>
           </div>
         </Card>
       </div>
