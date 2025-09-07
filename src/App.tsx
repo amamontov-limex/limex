@@ -144,7 +144,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
   const [newMessage, setNewMessage] = useState("");
   const [showMessages, setShowMessages] = useState(false);
   
-  const chips = ["What do you have?", "What about my portfolio?", "Research", "Challenges", "More"];
+  const chips = ["Create trading profile", "What about my portfolio?", "Research", "Challenges", "Products"];
   
   const handleSearch = () => {
     if (searchValue.trim()) {
@@ -261,11 +261,15 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
           </div>
           {!isChatOpen && (
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              {chips.map((c) => (
+              {chips.map((c, index) => (
                 <Badge 
                   key={c} 
                   variant="secondary" 
-                  className="rounded-full px-3 py-1 text-xs cursor-pointer hover:bg-gray-300 transition-colors"
+                  className={`rounded-full px-3 py-1 text-xs cursor-pointer transition-all duration-200 hover:scale-105 ${
+                    index === 0 
+                      ? 'bg-black text-white hover:bg-gray-800' 
+                      : 'hover:bg-gray-300'
+                  }`}
                   onClick={() => handleChipClick(c)}
                 >
                   {c}
