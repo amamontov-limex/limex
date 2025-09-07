@@ -4,13 +4,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUpRight, X } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
+import { sendMessageToOpenAI } from "@/lib/openai";
 
 // ===== Brand =====
 function Brand() {
   return (
     <a href="#" className="inline-flex items-center gap-2">
-      <span className="font-semibold tracking-tight">Limex</span>
+      <img 
+        src="/images/limex_beta_logo.svg" 
+        alt="Limex" 
+        className="h-[25px] w-auto"
+      />
     </a>
   );
 }
@@ -54,93 +59,11 @@ function Sidebar() {
 }
 
 
-// ===== Chat Component =====
-function ChatInterface({ isOpen, onClose, initialMessage }: { isOpen: boolean; onClose: () => void; initialMessage: string }) {
-  const [messages, setMessages] = useState([
-    { id: 1, text: initialMessage, sender: 'user' },
-    { id: 2, text: "I'd be happy to help you with your investment goals! Let me ask you a few questions to better understand your needs.", sender: 'bot' }
-  ]);
-  const [newMessage, setNewMessage] = useState("");
-  const [showMessages, setShowMessages] = useState(false);
-
-  // Обновляем сообщения при изменении initialMessage
-  useEffect(() => {
-    if (initialMessage && initialMessage.trim()) {
-      setMessages([
-        { id: 1, text: initialMessage, sender: 'user' },
-        { id: 2, text: "I'd be happy to help you with your investment goals! Let me ask you a few questions to better understand your needs.", sender: 'bot' }
-      ]);
-    }
-  }, [initialMessage]);
-
-  // Управляем последовательностью анимаций
-  useEffect(() => {
-    if (isOpen) {
-      // Сначала основная форма скрывается (1.5 секунды)
-      // Затем через 1.5 секунды показываем сообщения
-      const timer = setTimeout(() => {
-        setShowMessages(true);
-      }, 1500);
-      return () => clearTimeout(timer);
-    } else {
-      setShowMessages(false);
-    }
-  }, [isOpen]);
-
-  const handleSendMessage = () => {
-    if (newMessage.trim()) {
-      const userMessage = { id: messages.length + 1, text: newMessage, sender: 'user' };
-      setMessages(prev => [...prev, userMessage]);
-      setNewMessage("");
-      
-      // Simulate bot response
-      setTimeout(() => {
-        const botResponse = { id: messages.length + 2, text: "Thank you for sharing that information. Let me provide you with some personalized recommendations.", sender: 'bot' };
-        setMessages(prev => [...prev, botResponse]);
-      }, 1000);
-    }
-  };
-
-  return (
-    <div className="mx-auto max-w-3xl px-3">
-      {/* Messages */}
-      <div className={`space-y-6 mb-6 transition-all duration-1000 ease-in-out ${
-        showMessages ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
-      }`}>
-        {messages.map((message, index) => (
-          <div 
-            key={message.id} 
-            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-2000 ease-in-out ${
-              showMessages 
-                ? 'transform translate-y-0 opacity-100' 
-                : 'transform translate-y-12 opacity-0'
-            }`}
-            style={{
-              transitionDelay: showMessages ? `${index === 0 ? 0 : 1000}ms` : '0ms'
-            }}
-          >
-            <div className="max-w-[80%]">
-              <div className={`px-4 py-3 ${
-                message.sender === 'user' 
-                  ? 'bg-gray-100 text-gray-900 rounded-2xl' 
-                  : 'text-gray-900'
-              }`}>
-                {message.text}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      
-    </div>
-  );
-}
 
 // ===== Center Search =====
 function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsChatOpen: (open: boolean) => void }) {
   const [searchValue, setSearchValue] = useState("");
-  const [chatMessage, setChatMessage] = useState("");
-  const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'user' | 'bot'}>>([]);
+  const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'user' | 'bot', isThinking?: boolean}>>([]);
   const [newMessage, setNewMessage] = useState("");
   const [showMessages, setShowMessages] = useState(false);
   
@@ -148,8 +71,38 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
   
   const handleSearch = () => {
     if (searchValue.trim()) {
-      setChatMessage(searchValue);
+      console.log('🔍 Activating chat with message:', searchValue);
       setIsChatOpen(true);
+      
+      // Add user message
+      const userMessage = { id: 1, text: searchValue, sender: 'user' as const };
+      setMessages([userMessage]);
+      
+      // Add "AI is thinking" message
+      const thinkingMessage = { id: 2, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
+      setMessages(prev => [...prev, thinkingMessage]);
+      
+      // Send to OpenAI
+      const openAIMessages = [
+        { role: 'user' as const, content: searchValue }
+      ];
+      
+      sendMessageToOpenAI(openAIMessages)
+        .then((botResponse) => {
+          // Remove thinking message and add real response
+          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
+          const botMessage = { id: 2, text: botResponse, sender: 'bot' as const };
+          setMessages(prev => [...prev, botMessage]);
+        })
+        .catch((error) => {
+          console.error('Error getting AI response:', error);
+          // Remove thinking message and add error
+          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
+          const errorMessage = { id: 2, text: "Sorry, there was an error processing your request. Please try again.", sender: 'bot' as const };
+          setMessages(prev => [...prev, errorMessage]);
+        });
+      
+      setSearchValue(""); // Clear the search field
     }
   };
 
@@ -160,35 +113,84 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
   };
 
   const handleChipClick = (chipText: string) => {
-    setChatMessage(chipText);
+    console.log('🔘 Chip clicked:', chipText);
     setIsChatOpen(true);
-    setMessages([
-      { id: 1, text: chipText, sender: 'user' },
-      { id: 2, text: "I'd be happy to help you with your investment goals! Let me ask you a few questions to better understand your needs.", sender: 'bot' }
-    ]);
+    
+    // Add user message
+    const userMessage = { id: 1, text: chipText, sender: 'user' as const };
+    setMessages([userMessage]);
+    
+    // Add "AI is thinking" message
+    const thinkingMessage = { id: 2, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
+    setMessages(prev => [...prev, thinkingMessage]);
+    
+    // Send to OpenAI
+    const openAIMessages = [
+      { role: 'user' as const, content: chipText }
+    ];
+    
+    sendMessageToOpenAI(openAIMessages)
+      .then((botResponse) => {
+        // Remove thinking message and add real response
+        setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
+        const botMessage = { id: 2, text: botResponse, sender: 'bot' as const };
+        setMessages(prev => [...prev, botMessage]);
+      })
+      .catch((error) => {
+        console.error('Error getting AI response:', error);
+        // Remove thinking message and add error
+        setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
+        const errorMessage = { id: 2, text: "Sorry, there was an error processing your request. Please try again.", sender: 'bot' as const };
+        setMessages(prev => [...prev, errorMessage]);
+      });
   };
 
   const handleSendMessage = () => {
+    console.log('🚀 handleSendMessage called!');
+    console.log('📝 newMessage:', newMessage);
+    console.log('📝 newMessage.trim():', newMessage.trim());
+    
     if (newMessage.trim()) {
-      const userMessage = { id: messages.length + 1, text: newMessage, sender: 'user' };
+      const userMessage = { id: messages.length + 1, text: newMessage, sender: 'user' as const };
       setMessages(prev => [...prev, userMessage]);
       setNewMessage("");
       
-      // Simulate bot response
-      setTimeout(() => {
-        const botResponse = { id: messages.length + 2, text: "Thank you for sharing that information. Let me provide you with some personalized recommendations.", sender: 'bot' };
-        setMessages(prev => [...prev, botResponse]);
-      }, 1000);
+      // Add "AI is thinking" message
+      const thinkingMessage = { id: messages.length + 2, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
+      setMessages(prev => [...prev, thinkingMessage]);
+      
+      // Prepare messages for OpenAI
+      const openAIMessages = [
+        { role: 'user' as const, content: newMessage }
+      ];
+      
+      // Get response from OpenAI
+      sendMessageToOpenAI(openAIMessages)
+        .then((botResponse) => {
+          // Remove thinking message and add real response
+          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
+          const botMessage = { id: messages.length + 2, text: botResponse, sender: 'bot' as const };
+          setMessages(prev => [...prev, botMessage]);
+        })
+        .catch((error) => {
+          console.error('Error getting AI response:', error);
+          // Remove thinking message and add error
+          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
+          const errorMessage = { id: messages.length + 2, text: "Sorry, there was an error processing your request. Please try again.", sender: 'bot' as const };
+          setMessages(prev => [...prev, errorMessage]);
+        });
     }
   };
 
   // Управляем последовательностью анимаций
   useEffect(() => {
     if (isChatOpen) {
-      const timer = setTimeout(() => {
+      // Сначала ждем 2 секунды пока поле ввода встанет на место
+      const timer1 = setTimeout(() => {
         setShowMessages(true);
-      }, 1500);
-      return () => clearTimeout(timer);
+      }, 2000);
+      
+      return () => clearTimeout(timer1);
     } else {
       setShowMessages(false);
     }
@@ -202,7 +204,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
         {/* Messages */}
         {isChatOpen && (
           <div className="mx-auto max-w-3xl px-3 mt-6">
-            <div className={`space-y-6 mb-6 transition-all duration-1000 ease-in-out ${
+            <div className={`space-y-6 transition-all duration-1000 ease-in-out ${
               showMessages ? 'opacity-100' : 'opacity-0'
             }`}>
               {messages.map((message, index) => (
@@ -213,9 +215,9 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
                       ? 'transform translate-y-0 opacity-100' 
                       : 'transform translate-y-12 opacity-0'
                   }`}
-                  style={{
-                    transitionDelay: showMessages ? `${index === 0 ? 0 : 1000}ms` : '0ms'
-                  }}
+                              style={{
+                                transitionDelay: showMessages ? `${index === 0 ? 0 : 1000}ms` : '0ms'
+                              }}
                 >
                   <div className="max-w-[80%]">
                     <div className={`px-4 py-3 ${
@@ -223,7 +225,18 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
                         ? 'bg-gray-100 text-gray-900 rounded-2xl text-right' 
                         : 'text-gray-900 text-left'
                     }`}>
-                      {message.text}
+                      {message.isThinking ? (
+                        <div className="flex items-center gap-2">
+                          <span>{message.text}</span>
+                          <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                          </div>
+                        </div>
+                      ) : (
+                        message.text
+                      )}
                     </div>
                   </div>
                 </div>
@@ -232,11 +245,11 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
           </div>
         )}
 
-        {/* Search Interface - уезжает вниз при открытии чата */}
-        <div className={`transition-all duration-[1500ms] ease-in-out ${
-          isChatOpen ? 'transform translate-y-[50vh] opacity-100' : 'transform translate-y-0 opacity-100'
+        {/* Search Interface - плавная анимация */}
+        <div className={`transition-all duration-[2000ms] ease-out ${
+          isChatOpen ? 'mt-64' : 'mt-8'
         }`}>
-          <div className="mt-6 flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm">
+          <div className="flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm">
             <Input
               className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
               placeholder={isChatOpen ? "Type your message..." : "What is your investment goal?"}
@@ -253,7 +266,19 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
                   : 'bg-gray-100 text-gray-300 cursor-not-allowed'
               }`}
               aria-label="Go"
-              onClick={isChatOpen ? handleSendMessage : handleSearch}
+              onClick={() => {
+                console.log('🔘 Button clicked!');
+                console.log('🔘 isChatOpen:', isChatOpen);
+                console.log('🔘 newMessage:', newMessage);
+                console.log('🔘 searchValue:', searchValue);
+                if (isChatOpen) {
+                  console.log('🔘 Calling handleSendMessage');
+                  handleSendMessage();
+                } else {
+                  console.log('🔘 Calling handleSearch');
+                  handleSearch();
+                }
+              }}
               disabled={!(isChatOpen ? newMessage.trim() : searchValue.trim())}
             >
               <ArrowUpRight className="size-5" />
@@ -285,7 +310,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
 }
 
 // ===== Featured Grid =====
-function FeaturedGrid({ isChatOpen }: { isChatOpen: boolean }) {
+function FeaturedGrid() {
   const items = [
     {
       title: "Platform",
@@ -326,9 +351,7 @@ function FeaturedGrid({ isChatOpen }: { isChatOpen: boolean }) {
   };
 
   return (
-    <section className={`mt-20 px-3 transition-all duration-[1500ms] ease-in-out ${
-      isChatOpen ? 'transform translate-y-[50vh]' : 'transform translate-y-0'
-    }`}>
+    <section className="mt-6 px-3">
       <div className="mx-auto max-w-6xl grid gap-4 md:grid-cols-3">
         <Card 
           className="md:col-span-2 rounded-3xl overflow-hidden h-[340px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
@@ -448,41 +471,43 @@ function FeaturedGrid({ isChatOpen }: { isChatOpen: boolean }) {
           </div>
         </Card>
         
-        <Card 
-          className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
-          onClick={() => handleCardClick(items[4].link)}
-        >
-          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
-            <div className="text-center">
-              <div className="text-xl font-semibold tracking-tight text-gray-900 group-hover:scale-105 transition-transform duration-300">
-                {items[4].title}
+        <div className="flex flex-col gap-4">
+          <Card 
+            className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
+            onClick={() => handleCardClick(items[5].link)}
+          >
+            <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
+              <div className="text-center">
+                <div className="text-xl font-semibold tracking-tight text-gray-900 group-hover:scale-105 transition-transform duration-300">
+                  {items[5].title}
+                </div>
               </div>
+            </CardContent>
+            
+            {/* Description */}
+            <div className="absolute bottom-6 left-6 z-10">
+              <p className="text-gray-700 font-medium">{items[5].desc}</p>
             </div>
-          </CardContent>
+          </Card>
           
-          {/* Description */}
-          <div className="absolute bottom-6 left-6 z-10">
-            <p className="text-gray-700 font-medium">{items[4].desc}</p>
-          </div>
-        </Card>
-        
-        <Card 
-          className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
-          onClick={() => handleCardClick(items[5].link)}
-        >
-          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
-            <div className="text-center">
-              <div className="text-xl font-semibold tracking-tight text-gray-900 group-hover:scale-105 transition-transform duration-300">
-                {items[5].title}
+          <Card 
+            className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
+            onClick={() => handleCardClick(items[4].link)}
+          >
+            <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
+              <div className="text-center">
+                <div className="text-xl font-semibold tracking-tight text-gray-900 group-hover:scale-105 transition-transform duration-300">
+                  {items[4].title}
+                </div>
               </div>
+            </CardContent>
+            
+            {/* Description */}
+            <div className="absolute bottom-6 left-6 z-10">
+              <p className="text-gray-700 font-medium">{items[4].desc}</p>
             </div>
-          </CardContent>
-          
-          {/* Description */}
-          <div className="absolute bottom-6 left-6 z-10">
-            <p className="text-gray-700 font-medium">{items[5].desc}</p>
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
     </section>
   );
@@ -601,7 +626,7 @@ export default function App() {
       <main className="mx-auto max-w-[980px]">
         <div className="pt-10 lg:hidden px-3"><Brand /></div>
         <CenterSearch isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />
-        <FeaturedGrid isChatOpen={isChatOpen} />
+        <FeaturedGrid />
         <Footer />
       </main>
     </div>
