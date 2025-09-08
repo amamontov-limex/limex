@@ -61,15 +61,263 @@ function Sidebar() {
 
 
 // ===== Center Search =====
-function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setIsChatOpen: (open: boolean) => void }) {
+function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductScoresChanged }: { 
+  isChatOpen: boolean; 
+  setIsChatOpen: (open: boolean) => void;
+  onSurveyCompleted: (completed: boolean) => void;
+  onProductScoresChanged: (scores: Array<{product: string, points: number, percentage: number}>) => void;
+}) {
   const [searchValue, setSearchValue] = useState("");
   const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'user' | 'bot', isThinking?: boolean}>>([]);
   const [newMessage, setNewMessage] = useState("");
   const [showMessages, setShowMessages] = useState(false);
   const [showGoalChips, setShowGoalChips] = useState(false);
+  const [showCodingChips, setShowCodingChips] = useState(false);
+  const [showMentorshipChips, setShowMentorshipChips] = useState(false);
+  const [showToolsChips, setShowToolsChips] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showProductsButton, setShowProductsButton] = useState(false);
+  const [userAnswers, setUserAnswers] = useState<{goal: string, coding: string, mentorship: string, tools: string}>({
+    goal: '',
+    coding: '',
+    mentorship: '',
+    tools: ''
+  });
+  const [dynamicChips, setDynamicChips] = useState<string[]>([]);
+  const [showDynamicChips, setShowDynamicChips] = useState(false);
+  const [aiInteractionCount, setAiInteractionCount] = useState(0);
+  const [isInterfaceBlocked, setIsInterfaceBlocked] = useState(false);
+  const [surveyCompleted, setSurveyCompleted] = useState(false);
+  const [productScores, setProductScores] = useState<Array<{product: string, points: number, percentage: number}>>([]);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const messagesContainerRef = React.useRef<HTMLDivElement>(null);
   
   const initialChips = ["Find products for you", "What about my portfolio?", "Research", "Challenges", "Products"];
   const goalChips = ["Copy Trading", "Education", "Backtest my ideas", "AI instruments for trading"];
+  const codingChips = ["I prefer no coding", "I'm fine using AI to generate code", "I want to learn to code strategies myself"];
+  const mentorshipChips = ["No, I don't need", "Yes, I'd like expert insight or copy‑trading", "Yes, and I'm aiming for a professional quant role"];
+  const toolsChips = ["None", "I already record trades", "I use bots or signals"];
+  
+  // Функция для генерации динамических вопросов
+  const getNextQuestion = (currentAnswers: {goal: string, coding: string, mentorship: string, tools: string}, questionNumber: number) => {
+    const { goal, coding } = currentAnswers;
+    
+    switch(questionNumber) {
+      case 1: // После первого вопроса (goal)
+        if (goal === 'Copy Trading') {
+          return {
+            question: "What type of traders would you like to follow?",
+            chips: ["Professional traders", "Successful retail traders", "Quantitative strategies", "Any successful trader"],
+            nextQuestionNumber: 2
+          };
+        } else if (goal === 'Education') {
+          return {
+            question: "What's your current trading experience level?",
+            chips: ["Complete beginner", "Some experience", "Intermediate trader", "Advanced trader"],
+            nextQuestionNumber: 2
+          };
+        } else if (goal === 'Backtest my ideas') {
+          return {
+            question: "What type of strategies do you want to test?",
+            chips: ["Technical analysis", "Fundamental analysis", "Quantitative models", "Any strategy"],
+            nextQuestionNumber: 2
+          };
+        } else if (goal === 'AI instruments for trading') {
+          return {
+            question: "What's your programming background?",
+            chips: ["No programming experience", "Basic programming", "Intermediate programmer", "Advanced programmer"],
+            nextQuestionNumber: 2
+          };
+        }
+        break;
+        
+      case 2: // После второго вопроса
+        if (goal === 'Copy Trading' && coding === 'Professional traders') {
+          return {
+            question: "How much capital are you planning to allocate?",
+            chips: ["Under $1,000", "$1,000 - $10,000", "$10,000 - $50,000", "Over $50,000"],
+            nextQuestionNumber: 3
+          };
+        } else if (goal === 'Education') {
+          return {
+            question: "What learning format do you prefer?",
+            chips: ["Video courses", "Interactive tutorials", "Live sessions", "Self-paced materials"],
+            nextQuestionNumber: 3
+          };
+        } else if (goal === 'Backtest my ideas') {
+          return {
+            question: "What markets are you most interested in?",
+            chips: ["Forex", "Stocks", "Cryptocurrency", "Commodities"],
+            nextQuestionNumber: 3
+          };
+        } else {
+          return {
+            question: "How comfortable are you with coding?",
+            chips: ["I prefer no coding", "I'm fine using AI to generate code", "I want to learn to code strategies myself"],
+            nextQuestionNumber: 3
+          };
+        }
+        break;
+        
+      case 3: // После третьего вопроса
+        return {
+          question: "Do you want expert guidance or mentorship?",
+          chips: ["No, I don't need", "Yes, I'd like expert insight or copy‑trading", "Yes, and I'm aiming for a professional quant role"],
+          nextQuestionNumber: 4
+        };
+        
+      case 4: // После четвертого вопроса
+        return {
+          question: "Which tools do you currently use or prefer?",
+          chips: ["None", "I already record trades", "I use bots or signals"],
+          nextQuestionNumber: 5
+        };
+        
+      default:
+        return null;
+    }
+  };
+
+  // Система подсчета баллов
+  const calculateProductScores = (answers: {goal: string, coding: string, mentorship: string, tools: string}) => {
+    const scores: {[key: string]: number} = {
+      'Trader Journal': 0,
+      'ZipLime': 0,
+      'Alpha Builder': 0,
+      'Platform': 0,
+      'Quantum': 0,
+      'Quantum Course': 0
+    };
+
+    // Question 1: Primary goal (50 points)
+    switch(answers.goal) {
+      case 'Copy Trading':
+        scores.Platform += 50;
+        break;
+      case 'Education':
+        scores.Quantum += 50;
+        break;
+      case 'Backtest my ideas':
+        scores.ZipLime += 50;
+        break;
+      case 'AI instruments for trading':
+        scores['Alpha Builder'] += 50;
+        break;
+    }
+
+    // Question 2: Coding comfort (15 points)
+    switch(answers.coding) {
+      case 'I prefer no coding':
+        scores.Platform += 8;
+        scores['Alpha Builder'] += 7;
+        break;
+      case "I'm fine using AI to generate code":
+        scores.ZipLime += 15;
+        break;
+      case 'I want to learn to code strategies myself':
+        scores['Quantum Course'] += 15;
+        break;
+    }
+
+    // Question 3: Mentorship (10 points)
+    switch(answers.mentorship) {
+      case "No, I don't need":
+        scores['Trader Journal'] += 4;
+        scores.ZipLime += 3;
+        scores['Alpha Builder'] += 3;
+        break;
+      case "Yes, I'd like expert insight or copy‑trading":
+        scores.Platform += 5;
+        scores['Quantum Course'] += 5;
+        break;
+      case "Yes, and I'm aiming for a professional quant role":
+        scores.Quantum += 5;
+        scores['Quantum Course'] += 5;
+        break;
+    }
+
+    // Question 4: Tools (10 points)
+    switch(answers.tools) {
+      case 'None':
+        scores['Trader Journal'] += 5;
+        scores['Quantum Course'] += 5;
+        break;
+      case 'I already record trades':
+        scores.ZipLime += 5;
+        scores['Alpha Builder'] += 5;
+        break;
+      case 'I use bots or signals':
+        scores.Quantum += 5;
+        scores['Quantum Course'] += 5;
+        break;
+    }
+
+    // Calculate percentages
+    const totalPoints = Object.values(scores).reduce((sum, score) => sum + score, 0);
+    const percentages = Object.entries(scores).map(([product, points]) => ({
+      product,
+      points,
+      percentage: totalPoints > 0 ? Math.round((points / totalPoints) * 100) : 0
+    })).sort((a, b) => b.percentage - a.percentage);
+
+    return percentages;
+  };
+
+  // Автоматическая прокрутка к последнему сообщения (только внутри чата)
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+    }, 100);
+  };
+
+  // Функция для прокрутки до продуктов
+  const scrollToProducts = () => {
+    const productsSection = document.querySelector('section.mt-6');
+    if (productsSection) {
+      productsSection.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  };
+
+  // Плавное появление текста для сообщений
+  const typeMessage = (text: string) => {
+    setIsTyping(true);
+    setIsInterfaceBlocked(true); // Блокируем интерфейс во время анимации
+    
+    // Сначала устанавливаем пустой текст
+    setMessages(prev => {
+      const newMessages = [...prev];
+      const lastMessage = newMessages[newMessages.length - 1];
+      if (lastMessage && lastMessage.sender === 'bot') {
+        lastMessage.text = '';
+      }
+      return newMessages;
+    });
+    
+    // Через небольшую задержку показываем весь текст с плавной анимацией
+    setTimeout(() => {
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage && lastMessage.sender === 'bot') {
+          lastMessage.text = text;
+        }
+        return newMessages;
+      });
+      
+      // Разблокируем интерфейс после анимации
+      setTimeout(() => {
+        setIsTyping(false);
+        setIsInterfaceBlocked(false);
+        scrollToBottom();
+      }, 300); // Небольшая задержка для завершения CSS анимации
+    }, 200); // Задержка перед появлением текста
+  };
   
   const handleSearch = () => {
     if (searchValue.trim()) {
@@ -119,25 +367,348 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
     }
   };
 
+  // Функции для сохранения данных пользователя
+  const saveUserData = () => {
+    const userData = {
+      timestamp: new Date().toISOString(),
+      userAnswers,
+      productScores,
+      surveyCompleted,
+      aiInteractionCount,
+      messages: messages.map(msg => ({
+        id: msg.id,
+        text: msg.text,
+        sender: msg.sender,
+        timestamp: new Date().toISOString()
+      }))
+    };
+    
+    // Сохраняем в localStorage
+    localStorage.setItem('limex_user_data', JSON.stringify(userData));
+    console.log('💾 User data saved to localStorage');
+  };
+
+
+
+  // Функция для сброса состояния опроса
+  const resetSurvey = () => {
+    setCurrentQuestion(0);
+    setUserAnswers({
+      goal: '',
+      coding: '',
+      mentorship: '',
+      tools: ''
+    });
+    setShowGoalChips(false);
+    setShowCodingChips(false);
+    setShowMentorshipChips(false);
+    setShowToolsChips(false);
+    setShowDynamicChips(false);
+    setDynamicChips([]);
+    setMessages([]);
+    setAiInteractionCount(0);
+    setSurveyCompleted(false);
+    setProductScores([]);
+    setShowProductsButton(false);
+    console.log('🔄 Survey reset');
+  };
+
   const handleChipClick = (chipText: string) => {
     console.log('🔘 Chip clicked:', chipText);
-    setIsChatOpen(true);
+    console.log('📊 Current question:', currentQuestion);
+    console.log('📋 User answers:', userAnswers);
     
-    // Hide goal chips if user selects one
-    if (goalChips.includes(chipText)) {
-      setShowGoalChips(false);
+    // Проверяем, заблокирован ли интерфейс
+    if (isInterfaceBlocked) {
+      console.log('🚫 Interface is blocked during AI typing');
+      return;
     }
     
-    // Add user message
-    const userMessage = { id: 1, text: chipText, sender: 'user' as const };
-    setMessages([userMessage]);
+    // Проверяем лимит взаимодействий с ИИ
+    if (aiInteractionCount >= 50) {
+      const limitMessage = { id: Date.now(), text: "You've reached the limit of 50 interactions with the AI assistant. Please start a new session or contact support for assistance.", sender: 'bot' as const };
+      setMessages(prev => [...prev, limitMessage]);
+      return;
+    }
+    
+    setIsChatOpen(true);
+    
+    // Увеличиваем счетчик взаимодействий для чипов
+    setAiInteractionCount(prev => {
+      const newCount = prev + 1;
+      
+      // Предупреждение при приближении к лимиту
+      if (newCount === 45) {
+        const warningMessage = { id: Date.now() + 0.5, text: "⚠️ You have 5 interactions remaining with the AI assistant.", sender: 'bot' as const };
+        setMessages(prev => [...prev, warningMessage]);
+      }
+      
+      return newCount;
+    });
+    
+    // Special handling for "Find products for you" chip
+    if (chipText === "Find products for you") {
+      // Проверяем, не начат ли уже опрос
+      if (currentQuestion > 0) {
+        console.log('⚠️ Survey already started, current question:', currentQuestion);
+        return;
+      }
+      
+      // Set current question to 1 (first question)
+      setCurrentQuestion(1);
+      
+      // Add user message with "Find products"
+      const userMessage = { id: Date.now(), text: "Find products", sender: 'user' as const };
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Add empty AI message first
+      const botMessage = { id: Date.now() + 1, text: "", sender: 'bot' as const };
+      setMessages(prev => [...prev, botMessage]);
+      
+      // Start typing effect after a short delay
+      setTimeout(() => {
+        typeMessage("What is your primary goal?");
+      }, 1000);
+      
+      // Show goal chips immediately
+      setShowGoalChips(true);
+      return;
+    }
+    
+    // Handle goal chips (first question) - теперь используем динамические вопросы
+    if (goalChips.includes(chipText)) {
+      // Проверяем, что мы действительно на первом вопросе
+      if (currentQuestion !== 1) {
+        console.log('⚠️ Not on question 1, current question:', currentQuestion);
+        return;
+      }
+      
+      setShowGoalChips(false);
+      setCurrentQuestion(2); // Переходим ко второму вопросу
+      
+      // Save user answer
+      setUserAnswers(prev => ({ ...prev, goal: chipText }));
+      
+      // Add user message
+      const userMessage = { id: Date.now(), text: chipText, sender: 'user' as const };
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Показываем кнопку "Show" после первого ответа
+      setShowProductsButton(true);
+      
+      // Обновляем productScores после первого ответа
+      const updatedAnswers = { ...userAnswers, goal: chipText };
+      const scores = calculateProductScores(updatedAnswers);
+      setProductScores(scores);
+      onProductScoresChanged(scores);
+      
+      // Get next question dynamically
+      const nextQuestionData = getNextQuestion(updatedAnswers, 1);
+      
+      if (nextQuestionData) {
+        // Add empty AI message first
+        const botMessage = { id: Date.now() + 1, text: "", sender: 'bot' as const };
+        setMessages(prev => [...prev, botMessage]);
+        
+        // Start typing effect after a short delay
+        setTimeout(() => {
+          typeMessage(nextQuestionData.question);
+        }, 1000);
+        
+        // Show dynamic chips after typing is complete
+        setTimeout(() => {
+          setDynamicChips(nextQuestionData.chips);
+          setShowDynamicChips(true);
+        }, 3000);
+      }
+      return;
+    }
+    
+    // Handle dynamic chips (for questions 2-4)
+    if (dynamicChips.includes(chipText)) {
+      setShowDynamicChips(false);
+      
+      // Save user answer based on current question
+      const updatedAnswers = { ...userAnswers };
+      if (currentQuestion === 2) {
+        updatedAnswers.coding = chipText;
+      } else if (currentQuestion === 3) {
+        updatedAnswers.mentorship = chipText;
+      } else if (currentQuestion === 4) {
+        updatedAnswers.tools = chipText;
+      }
+      
+      setUserAnswers(updatedAnswers);
+      setCurrentQuestion(prev => prev + 1);
+      
+      // Обновляем productScores после каждого ответа
+      const scores = calculateProductScores(updatedAnswers);
+      setProductScores(scores);
+      onProductScoresChanged(scores);
+      
+      // Add user message
+      const userMessage = { id: Date.now(), text: chipText, sender: 'user' as const };
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Get next question dynamically
+      const nextQuestionData = getNextQuestion(updatedAnswers, currentQuestion + 1);
+      
+      if (nextQuestionData && currentQuestion < 4) {
+        // Add empty AI message first
+        const botMessage = { id: Date.now() + 1, text: "", sender: 'bot' as const };
+        setMessages(prev => [...prev, botMessage]);
+        
+        // Start typing effect after a short delay
+        setTimeout(() => {
+          typeMessage(nextQuestionData.question);
+        }, 1000);
+        
+        // Show dynamic chips after typing is complete
+        setTimeout(() => {
+          setDynamicChips(nextQuestionData.chips);
+          setShowDynamicChips(true);
+        }, 3000);
+      } else {
+        // Final question reached - calculate scores and show recommendations
+        const scores = calculateProductScores(updatedAnswers);
+        const topRecommendations = scores.filter(score => score.percentage > 0).slice(0, 3);
+        
+        // Save survey results
+        setSurveyCompleted(true);
+        setProductScores(scores);
+        
+        // Уведомляем родительский компонент
+        onSurveyCompleted(true);
+        onProductScoresChanged(scores);
+        
+        // Сохраняем данные пользователя
+        setTimeout(() => {
+          saveUserData();
+        }, 1000); // Сохраняем через секунду после завершения опроса
+        
+        // Create personalized response
+        let response = "Based on your answers we recommend you products below:\n\n";
+        
+        topRecommendations.forEach((rec, index) => {
+          response += `${index + 1}. **${rec.product}** (${rec.percentage}% match)\n`;
+        });
+        
+        response += "\nThese recommendations are tailored to your specific needs and preferences.";
+        
+        // Add AI response with recommendations
+        const botMessage = { id: Date.now() + 1, text: response, sender: 'bot' as const };
+        setMessages(prev => [...prev, botMessage]);
+      }
+      return;
+    }
+    
+    // Handle coding chips (second question) - старый код для совместимости (ОТКЛЮЧЕН)
+    if (false && codingChips.includes(chipText)) {
+      setShowCodingChips(false);
+      setCurrentQuestion(2);
+      
+      // Save user answer
+      setUserAnswers(prev => ({ ...prev, coding: chipText }));
+      
+      // Add user message
+      const userMessage = { id: Date.now(), text: chipText, sender: 'user' as const };
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Add empty AI message first
+      const botMessage = { id: Date.now() + 1, text: "", sender: 'bot' as const };
+      setMessages(prev => [...prev, botMessage]);
+      
+      // Start typing effect after a short delay
+      setTimeout(() => {
+        typeMessage("Do you want expert guidance or mentorship?");
+      }, 1000);
+      
+      // Show mentorship chips after typing is complete
+      setTimeout(() => {
+        setShowMentorshipChips(true);
+      }, 3000);
+      return;
+    }
+    
+    // Handle mentorship chips (third question) - старый код для совместимости (ОТКЛЮЧЕН)
+    if (false && mentorshipChips.includes(chipText)) {
+      setShowMentorshipChips(false);
+      setCurrentQuestion(3);
+      
+      // Save user answer
+      setUserAnswers(prev => ({ ...prev, mentorship: chipText }));
+      
+      // Add user message
+      const userMessage = { id: Date.now(), text: chipText, sender: 'user' as const };
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Add empty AI message first
+      const botMessage = { id: Date.now() + 1, text: "", sender: 'bot' as const };
+      setMessages(prev => [...prev, botMessage]);
+      
+      // Start typing effect after a short delay
+      setTimeout(() => {
+        typeMessage("Which tools do you currently use or prefer?");
+      }, 1000);
+      
+      // Show tools chips after typing is complete
+      setTimeout(() => {
+        setShowToolsChips(true);
+      }, 3000);
+      return;
+    }
+    
+    // Handle tools chips (fourth question) - старый код для совместимости (ОТКЛЮЧЕН)
+    if (false && toolsChips.includes(chipText)) {
+      setShowToolsChips(false);
+      setCurrentQuestion(4);
+      
+      // Save user answer
+      setUserAnswers(prev => ({ ...prev, tools: chipText }));
+      
+      // Add user message
+      const userMessage = { id: Date.now(), text: chipText, sender: 'user' as const };
+      setMessages(prev => [...prev, userMessage]);
+      
+      // Calculate product scores
+      const scores = calculateProductScores({ ...userAnswers, tools: chipText });
+      const topRecommendations = scores.filter(score => score.percentage > 0).slice(0, 3);
+      
+      // Create personalized response
+      let response = "Thank you for your answers! Based on your preferences, here are your personalized product recommendations:\n\n";
+      
+      topRecommendations.forEach((rec, index) => {
+        response += `${index + 1}. **${rec.product}** (${rec.percentage}% match)\n`;
+        response += `   Based on your answers: ${userAnswers.goal}, ${userAnswers.coding}, ${userAnswers.mentorship}, ${chipText}\n\n`;
+      });
+      
+      response += "These recommendations are tailored to your specific needs and preferences. Would you like to learn more about any of these products?";
+      
+      // Add AI response with recommendations using typing effect
+      const botMessage = { id: Date.now() + 1, text: "", sender: 'bot' as const };
+      setMessages(prev => [...prev, botMessage]);
+      
+      // Use typing effect for the response
+      setTimeout(() => {
+        typeMessage(response);
+      }, 100);
+      return;
+    }
+    
+    // Add user message to existing messages
+    const userMessage = { id: Date.now(), text: chipText, sender: 'user' as const };
+    setMessages(prev => [...prev, userMessage]);
     
     // Add "AI is thinking" message
-    const thinkingMessage = { id: 2, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
+    const thinkingMessage = { id: Date.now() + 1, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
     setMessages(prev => [...prev, thinkingMessage]);
     
-    // Send to OpenAI
+    // Prepare messages for OpenAI (include conversation history)
     const openAIMessages = [
+      ...messages.map(msg => ({ 
+        role: msg.sender === 'user' ? 'user' as const : 'assistant' as const, 
+        content: msg.text 
+      })),
       { role: 'user' as const, content: chipText }
     ];
     
@@ -145,7 +716,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
       .then((botResponse) => {
         // Remove thinking message and add real response
         setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-        const botMessage = { id: 2, text: botResponse, sender: 'bot' as const };
+        const botMessage = { id: Date.now() + 2, text: botResponse, sender: 'bot' as const };
         setMessages(prev => [...prev, botMessage]);
         
         // Show goal chips if AI asks about primary goal
@@ -157,7 +728,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
         console.error('Error getting AI response:', error);
         // Remove thinking message and add error
         setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-        const errorMessage = { id: 2, text: "Sorry, there was an error processing your request. Please try again.", sender: 'bot' as const };
+        const errorMessage = { id: Date.now() + 2, text: "Sorry, there was an error processing your request. Please try again.", sender: 'bot' as const };
         setMessages(prev => [...prev, errorMessage]);
       });
   };
@@ -167,39 +738,132 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
     console.log('📝 newMessage:', newMessage);
     console.log('📝 newMessage.trim():', newMessage.trim());
     
+    // Проверяем, заблокирован ли интерфейс
+    if (isInterfaceBlocked) {
+      console.log('🚫 Interface is blocked during AI typing');
+      return;
+    }
+    
+    // Проверяем лимит взаимодействий с ИИ
+    if (aiInteractionCount >= 50) {
+      const limitMessage = { id: Date.now(), text: "You've reached the limit of 50 interactions with the AI assistant. Please start a new session or contact support for assistance.", sender: 'bot' as const };
+      setMessages(prev => [...prev, limitMessage]);
+      return;
+    }
+    
     if (newMessage.trim()) {
-      const userMessage = { id: messages.length + 1, text: newMessage, sender: 'user' as const };
+      const userMessage = { id: Date.now(), text: newMessage, sender: 'user' as const };
       setMessages(prev => [...prev, userMessage]);
       setNewMessage("");
       
+      // Увеличиваем счетчик взаимодействий
+      setAiInteractionCount(prev => {
+        const newCount = prev + 1;
+        
+        // Предупреждение при приближении к лимиту
+        if (newCount === 45) {
+          const warningMessage = { id: Date.now() + 0.5, text: "⚠️ You have 5 interactions remaining with the AI assistant.", sender: 'bot' as const };
+          setMessages(prev => [...prev, warningMessage]);
+        }
+        
+        return newCount;
+      });
+      
+      // Если мы в процессе опроса, обрабатываем ответ как чип
+      if (currentQuestion > 0 && currentQuestion < 5) {
+        // Определяем, какой тип ответа это может быть
+        const lowerMessage = newMessage.toLowerCase();
+        
+        // Проверяем, соответствует ли ответ одному из чипов
+        let matchedChip = null;
+        
+        if (currentQuestion === 1) {
+          // Проверяем goal chips с более гибким сопоставлением
+          for (const chip of goalChips) {
+            const chipLower = chip.toLowerCase();
+            const messageLower = lowerMessage.toLowerCase();
+            
+            // Проверяем различные варианты совпадений
+            if (messageLower.includes(chipLower) || 
+                chipLower.includes(messageLower) ||
+                (messageLower.includes('copy') && chipLower.includes('copy')) ||
+                (messageLower.includes('education') && chipLower.includes('education')) ||
+                (messageLower.includes('backtest') && chipLower.includes('backtest')) ||
+                (messageLower.includes('ai') && chipLower.includes('ai'))) {
+              matchedChip = chip;
+              break;
+            }
+          }
+        } else if (currentQuestion >= 2) {
+          // Проверяем dynamic chips
+          for (const chip of dynamicChips) {
+            if (lowerMessage.includes(chip.toLowerCase()) || chip.toLowerCase().includes(lowerMessage)) {
+              matchedChip = chip;
+              break;
+            }
+          }
+        }
+        
+        if (matchedChip) {
+          // Обрабатываем как чип
+          console.log('🎯 Found matching chip:', matchedChip, 'for message:', newMessage);
+          handleChipClick(matchedChip);
+          return;
+        } else {
+          // Если не нашли совпадение, просим выбрать из предложенных вариантов
+          console.log('❌ No matching chip found for message:', newMessage);
+          console.log('📋 Available chips:', currentQuestion === 1 ? goalChips : dynamicChips);
+          const botMessage = { id: Date.now() + 1, text: "", sender: 'bot' as const };
+          setMessages(prev => [...prev, botMessage]);
+          
+          // Use typing effect for the response
+          setTimeout(() => {
+            typeMessage("Please select one of the options above to continue.");
+          }, 100);
+          return;
+        }
+      }
+      
+      // Обычная обработка для случаев вне опроса
       // Add "AI is thinking" message
-      const thinkingMessage = { id: messages.length + 2, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
+      const thinkingMessage = { id: Date.now() + 1, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
       setMessages(prev => [...prev, thinkingMessage]);
       
-      // Prepare messages for OpenAI
+      // Prepare messages for OpenAI (include conversation history)
       const openAIMessages = [
+        ...messages.map(msg => ({ 
+          role: msg.sender === 'user' ? 'user' as const : 'assistant' as const, 
+          content: msg.text 
+        })),
         { role: 'user' as const, content: newMessage }
       ];
       
       // Get response from OpenAI
       sendMessageToOpenAI(openAIMessages)
         .then((botResponse) => {
-          // Remove thinking message and add real response
+          // Remove thinking message and add real response with typing effect
           setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-          const botMessage = { id: messages.length + 2, text: botResponse, sender: 'bot' as const };
+          const botMessage = { id: Date.now() + 2, text: "", sender: 'bot' as const };
           setMessages(prev => [...prev, botMessage]);
           
-          // Show goal chips if AI asks about primary goal
-          if (botResponse.toLowerCase().includes('primary goal') || botResponse.toLowerCase().includes('what is your')) {
-            setShowGoalChips(true);
-          }
+          // Use typing effect for the response
+          setTimeout(() => {
+            typeMessage(botResponse);
+          }, 100);
+          
+          // НЕ показываем чипы автоматически - они управляются только через handleChipClick
         })
         .catch((error) => {
           console.error('Error getting AI response:', error);
-          // Remove thinking message and add error
+          // Remove thinking message and add error with typing effect
           setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-          const errorMessage = { id: messages.length + 2, text: "Sorry, there was an error processing your request. Please try again.", sender: 'bot' as const };
+          const errorMessage = { id: Date.now() + 2, text: "", sender: 'bot' as const };
           setMessages(prev => [...prev, errorMessage]);
+          
+          // Use typing effect for the error message
+          setTimeout(() => {
+            typeMessage("Sorry, there was an error processing your request. Please try again.");
+          }, 100);
         });
     }
   };
@@ -218,10 +882,17 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
     }
   }, [isChatOpen]);
 
+  // Автоматическая прокрутка при появлении новых сообщений
+  useEffect(() => {
+    if (messages.length > 0 && showMessages) {
+      scrollToBottom();
+    }
+  }, [messages, showMessages]);
+
   return (
     <section className="pt-24">
-      <div className="mx-auto max-w-3xl text-center px-3">
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Create your investment profile</h1>
+      <div className="mx-auto max-w-4xl text-center px-3">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mb-6">Create your investment profile</h1>
         
         {/* Chat Container - динамическая высота */}
         <div className={`flex flex-col transition-all duration-[2000ms] ease-out ${
@@ -229,7 +900,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
         }`}>
           {/* Messages */}
           {isChatOpen && (
-            <div className="flex-1 px-3 py-4">
+            <div ref={messagesContainerRef} className="flex-1 px-3 py-4 overflow-y-auto">
               <div className={`space-y-6 transition-all duration-1000 ease-in-out ${
                 showMessages ? 'opacity-100' : 'opacity-0'
               }`}>
@@ -261,23 +932,64 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
                             </div>
                           </div>
                         ) : (
-                          message.text
+                          <div className="flex items-center gap-2">
+                            <span className={`transition-all duration-500 ease-in-out ${
+                              message.text ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-2'
+                            }`}>
+                              {message.text}
+                            </span>
+                            {isTyping && message.sender === 'bot' && message.text === "" && (
+                              <div className="flex gap-1">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
+                <div ref={messagesEndRef} />
               </div>
             </div>
           )}
 
-          {/* Search Interface - всегда внизу */}
-          <div className={`transition-all duration-[2000ms] ease-out ${
-            isChatOpen ? 'mt-0' : 'mt-auto'
-          }`}>
+          {/* Search Interface - фиксированное внизу */}
+          <div className="flex-shrink-0">
           {isChatOpen && showGoalChips && (
             <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
               {goalChips.map((c) => (
+                <Badge 
+                  key={c} 
+                  variant="secondary" 
+                  className={`rounded-full px-4 py-2 text-sm transition-all duration-200 ${
+                    isInterfaceBlocked 
+                      ? 'cursor-not-allowed opacity-50' 
+                      : 'cursor-pointer hover:scale-105 hover:bg-gray-300'
+                  }`}
+                  onClick={() => !isInterfaceBlocked && handleChipClick(c)}
+                >
+                  {c}
+                </Badge>
+              ))}
+              <Badge 
+                variant="outline" 
+                className={`rounded-full px-4 py-2 text-sm transition-all duration-200 ${
+                  isInterfaceBlocked 
+                    ? 'cursor-not-allowed opacity-50' 
+                    : 'cursor-pointer hover:scale-105 hover:bg-red-50 hover:text-red-600'
+                }`}
+                onClick={() => !isInterfaceBlocked && resetSurvey()}
+              >
+                Start over
+              </Badge>
+            </div>
+          )}
+          {isChatOpen && showCodingChips && (
+            <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+              {codingChips.map((c) => (
                 <Badge 
                   key={c} 
                   variant="secondary" 
@@ -289,14 +1001,90 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
               ))}
             </div>
           )}
-          <div className="flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm">
+          {isChatOpen && showMentorshipChips && (
+            <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+              {mentorshipChips.map((c) => (
+                <Badge 
+                  key={c} 
+                  variant="secondary" 
+                  className="rounded-full px-4 py-2 text-sm cursor-pointer transition-all duration-200 hover:scale-105 hover:bg-gray-300"
+                  onClick={() => handleChipClick(c)}
+                >
+                  {c}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {isChatOpen && showToolsChips && (
+            <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+              {toolsChips.map((c) => (
+                <Badge 
+                  key={c} 
+                  variant="secondary" 
+                  className="rounded-full px-4 py-2 text-sm cursor-pointer transition-all duration-200 hover:scale-105 hover:bg-gray-300"
+                  onClick={() => handleChipClick(c)}
+                >
+                  {c}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {isChatOpen && showDynamicChips && (
+            <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
+              {dynamicChips.map((c) => (
+                <Badge 
+                  key={c} 
+                  variant="secondary" 
+                  className={`rounded-full px-4 py-2 text-sm transition-all duration-200 ${
+                    isInterfaceBlocked 
+                      ? 'cursor-not-allowed opacity-50' 
+                      : 'cursor-pointer hover:scale-105 hover:bg-gray-300'
+                  }`}
+                  onClick={() => !isInterfaceBlocked && handleChipClick(c)}
+                >
+                  {c}
+                </Badge>
+              ))}
+              <Badge 
+                variant="outline" 
+                className={`rounded-full px-4 py-2 text-sm transition-all duration-200 ${
+                  isInterfaceBlocked 
+                    ? 'cursor-not-allowed opacity-50' 
+                    : 'cursor-pointer hover:scale-105 hover:bg-red-50 hover:text-red-600'
+                }`}
+                onClick={() => !isInterfaceBlocked && resetSurvey()}
+              >
+                Start over
+              </Badge>
+            </div>
+          )}
+          {/* AI Interaction Counter */}
+          {isChatOpen && aiInteractionCount > 0 && (
+            <div className="mb-2 text-center">
+              <span className="text-xs text-gray-500">
+                AI interactions: {aiInteractionCount}/50
+                {aiInteractionCount >= 45 && (
+                  <span className="text-orange-500 font-semibold"> (⚠️ Approaching limit)</span>
+                )}
+                {aiInteractionCount >= 50 && (
+                  <span className="text-red-500 font-semibold"> (❌ Limit reached)</span>
+                )}
+              </span>
+            </div>
+          )}
+          
+          
+          <div className={`flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm ${
+            isInterfaceBlocked ? 'opacity-50' : ''
+          }`}>
             <Input
               className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-              placeholder={isChatOpen ? "Type your message..." : "What is your investment goal?"}
+              placeholder={isChatOpen ? (isInterfaceBlocked ? "AI is typing..." : "Type your message...") : "What is your investment goal?"}
               aria-label="Ask Limex"
               value={isChatOpen ? newMessage : searchValue}
-              onChange={(e) => isChatOpen ? setNewMessage(e.target.value) : setSearchValue(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (isChatOpen ? handleSendMessage() : handleKeyPress(e))}
+              onChange={(e) => !isInterfaceBlocked && (isChatOpen ? setNewMessage(e.target.value) : setSearchValue(e.target.value))}
+              onKeyPress={(e) => !isInterfaceBlocked && e.key === 'Enter' && (isChatOpen ? handleSendMessage() : handleKeyPress(e))}
+              disabled={isInterfaceBlocked}
             />
             <Button 
               size="icon" 
@@ -304,9 +1092,13 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
                 (isChatOpen ? newMessage.trim() : searchValue.trim())
                   ? 'bg-gray-900 hover:bg-gray-800 text-white' 
                   : 'bg-gray-100 text-gray-300 cursor-not-allowed'
-              }`}
+              } ${isInterfaceBlocked ? 'cursor-not-allowed opacity-50' : ''}`}
               aria-label="Go"
               onClick={() => {
+                if (isInterfaceBlocked) {
+                  console.log('🚫 Interface is blocked during AI typing');
+                  return;
+                }
                 console.log('🔘 Button clicked!');
                 console.log('🔘 isChatOpen:', isChatOpen);
                 console.log('🔘 newMessage:', newMessage);
@@ -319,10 +1111,21 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
                   handleSearch();
                 }
               }}
-              disabled={!(isChatOpen ? newMessage.trim() : searchValue.trim())}
+              disabled={isInterfaceBlocked || !(isChatOpen ? newMessage.trim() : searchValue.trim())}
             >
               <ArrowUpRight className="size-5" />
             </Button>
+            
+            {/* Кнопка Show для прокрутки до продуктов */}
+            {isChatOpen && showProductsButton && (
+              <Button 
+                size="sm" 
+                className="ml-2 rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                onClick={scrollToProducts}
+              >
+                Show
+              </Button>
+            )}
           </div>
           {!isChatOpen && (
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
@@ -351,39 +1154,66 @@ function CenterSearch({ isChatOpen, setIsChatOpen }: { isChatOpen: boolean; setI
 }
 
 // ===== Featured Grid =====
-function FeaturedGrid() {
+function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boolean, productScores: Array<{product: string, points: number, percentage: number}> }) {
   const items = [
     {
       title: "Platform",
       desc: "Best instruments for traders in one platform",
       link: "https://beta.limex.com",
+      productName: "Platform"
     },
     {
       title: "Challenges",
       desc: "For quants, algo traders and researchers",
       link: "https://challenges.limex.com",
+      productName: "Challenges"
     },
     {
       title: "Research",
       desc: "Backtest your ideas with Ziplime",
       link: null, // Coming soon
+      productName: "Research"
     },
     {
       title: "Traders Journal",
       desc: "Your trading thoughts and more",
       link: null, // No link specified
+      productName: "Trader Journal"
     },
     {
       title: "Alpha Builder",
       desc: "Intelligent stock selection and portfolio optimization",
       link: "https://builder.limex.com",
+      productName: "Alpha Builder"
     },
     {
       title: "ZipLime",
       desc: "The legendary backtester — no setup needed.",
       link: "https://ziplime.limex.com",
+      productName: "ZipLime"
+    },
+    {
+      title: "Quantum",
+      desc: "Professional quant trading and mentorship program",
+      link: "https://promo.limex.com",
+      productName: "Quantum"
+    },
+    {
+      title: "Quantum Course",
+      desc: "Advanced algorithmic trading course",
+      link: "https://promo.limex.com",
+      productName: "Quantum Course"
     },
   ];
+
+  // Сортируем карточки на основе результатов опроса
+  const sortedItems = surveyCompleted && productScores.length > 0 
+    ? items.sort((a, b) => {
+        const scoreA = productScores.find(s => s.product === a.productName)?.percentage || 0;
+        const scoreB = productScores.find(s => s.product === b.productName)?.percentage || 0;
+        return scoreB - scoreA; // Сортируем по убыванию баллов
+      })
+    : items;
 
   const handleCardClick = (link: string | null) => {
     if (link) {
@@ -391,92 +1221,193 @@ function FeaturedGrid() {
     }
   };
 
+  // Функция для получения процента рекомендации карточки
+  const getRecommendationPercentage = (productName: string) => {
+    if (!productScores.length) return 0;
+    const score = productScores.find(s => s.product === productName);
+    return score ? score.percentage : 0;
+  };
+
+
+  // Компонент для динамического бейджа "Recommended"
+  const RecommendedBadge = ({ productName }: { productName: string }) => {
+    const percentage = getRecommendationPercentage(productName);
+    const [isVisible, setIsVisible] = useState(false);
+    const [fillPercentage, setFillPercentage] = useState(0);
+
+    useEffect(() => {
+      if (percentage > 0) {
+        // Показываем бейдж с задержкой
+        setTimeout(() => {
+          setIsVisible(true);
+          // Заполняем прогресс-бар с анимацией
+          setTimeout(() => {
+            setFillPercentage(percentage);
+          }, 300);
+        }, 200);
+      } else {
+        setIsVisible(false);
+        setFillPercentage(0);
+      }
+    }, [percentage]);
+
+    if (!isVisible) return null;
+
+    return (
+      <div className="absolute top-4 right-4 z-10">
+        <div className="relative bg-white/20 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg border border-white/30 overflow-hidden">
+          {/* Фон прогресс-бара */}
+          <div className="absolute inset-0 bg-green-500/20"></div>
+          
+          {/* Заполняющийся зеленый фон */}
+          <div 
+            className="absolute inset-0 bg-green-500 transition-all duration-1000 ease-out"
+            style={{ 
+              width: `${fillPercentage}%`,
+              transitionDelay: '200ms'
+            }}
+          ></div>
+          
+          {/* Текст поверх прогресс-бара */}
+          <span className="relative z-10 text-white drop-shadow-sm">
+            Recommended {Math.round(fillPercentage)}%
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  // Компонент для анимированной карточки
+  const AnimatedCard = ({ 
+    item, 
+    index, 
+    isFirst, 
+    isSecond, 
+    isThird 
+  }: { 
+    item: any, 
+    index: number, 
+    isFirst: boolean, 
+    isSecond: boolean, 
+    isThird: boolean 
+  }) => {
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    useEffect(() => {
+      if (surveyCompleted && productScores.length > 0) {
+        setIsAnimating(true);
+        // Сбрасываем анимацию через время
+        setTimeout(() => {
+          setIsAnimating(false);
+        }, 1500);
+      }
+    }, [surveyCompleted, productScores]);
+
+    // Определяем размеры карточки в зависимости от позиции
+    const getCardSize = () => {
+      if (isFirst) return "md:col-span-2 rounded-3xl overflow-hidden h-[340px]";
+      if (isSecond) return "rounded-3xl overflow-hidden h-[340px]";
+      if (isThird) return "rounded-3xl overflow-hidden h-[260px]";
+      return "rounded-3xl overflow-hidden h-[260px]";
+    };
+
+    // Определяем размер текста в зависимости от позиции
+    const getTextSize = () => {
+      if (isFirst) return "text-5xl";
+      if (isSecond) return "text-2xl";
+      return "text-xl";
+    };
+
+    return (
+      <Card 
+        className={`${getCardSize()} bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-1000 ease-out ${
+          isAnimating ? 'transform scale-105 shadow-2xl' : 'transform scale-100'
+        }`}
+        onClick={() => handleCardClick(item.link)}
+        style={{
+          transitionDelay: `${index * 200}ms`,
+          animation: isAnimating ? 'cardPulse 1.5s ease-in-out' : 'none'
+        }}
+      >
+        {/* Background Image with Blur */}
+        <div className="absolute inset-0">
+          <img 
+            src="/images/abstract-representation-of-a-digital-copilot-in-a-.png" 
+            alt={item.title} 
+            className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
+          />
+        </div>
+        
+        {/* Content Overlay */}
+        <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
+          <div className="text-center">
+            <div className={`${getTextSize()} font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300`}>
+              {item.title}
+            </div>
+          </div>
+        </CardContent>
+        
+        {/* Description */}
+        <div className="absolute bottom-6 left-6 z-10">
+          <p className="text-white drop-shadow-lg font-medium">{item.desc}</p>
+        </div>
+        
+        {/* Recommended Badge */}
+        <RecommendedBadge productName={item.productName} />
+      </Card>
+    );
+  };
+
   return (
-    <section className="mt-6 px-3">
+    <section className="mt-6">
+      {/* CSS анимации */}
+      <style>{`
+        @keyframes cardPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        
+        @keyframes cardSlideIn {
+          0% { 
+            transform: translateY(50px) scale(0.9); 
+            opacity: 0; 
+          }
+          100% { 
+            transform: translateY(0) scale(1); 
+            opacity: 1; 
+          }
+        }
+        
+        .card-animate {
+          animation: cardSlideIn 0.8s ease-out forwards;
+        }
+      `}</style>
+      
       <div className="mx-auto max-w-6xl grid gap-4 md:grid-cols-3">
-        <Card 
-          className="md:col-span-2 rounded-3xl overflow-hidden h-[340px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
-          onClick={() => handleCardClick(items[0].link)}
-        >
-          {/* Background Image with Blur */}
-          <div className="absolute inset-0">
-            <img 
-              src="/images/abstract-representation-of-a-digital-copilot-in-a-.png" 
-              alt="Platform" 
-              className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
-            />
-          </div>
-          
-          {/* Content Overlay */}
-          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
-            <div className="text-center">
-              <div className="text-5xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
-                AI instruments
-              </div>
-            </div>
-          </CardContent>
-          
-          {/* Description */}
-          <div className="absolute bottom-6 left-6 z-10">
-            <p className="text-white drop-shadow-lg font-medium">{items[0].desc}</p>
-          </div>
-        </Card>
+        <AnimatedCard 
+          item={sortedItems[0]} 
+          index={0}
+          isFirst={true}
+          isSecond={false}
+          isThird={false}
+        />
         
-        <Card 
-          className="rounded-3xl overflow-hidden h-[340px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
-          onClick={() => handleCardClick(items[1].link)}
-        >
-          {/* Background Image with Blur */}
-          <div className="absolute inset-0">
-            <img 
-              src="/images/golden-race-cup-big-around-it-lines-like-orbits-wi.png" 
-              alt="Challenges" 
-              className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
-            />
-          </div>
-          
-          {/* Content Overlay */}
-          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
-            <div className="text-center">
-              <div className="text-2xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
-                {items[1].title}
-              </div>
-            </div>
-          </CardContent>
-          
-          {/* Description */}
-          <div className="absolute bottom-6 left-6 z-10">
-            <p className="text-white drop-shadow-lg font-medium">{items[1].desc}</p>
-          </div>
-        </Card>
+        <AnimatedCard 
+          item={sortedItems[1]} 
+          index={1}
+          isFirst={false}
+          isSecond={true}
+          isThird={false}
+        />
         
-        <Card 
-          className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
-          onClick={() => window.open('https://www.promo.limex.com/quantum_course', '_blank')}
-        >
-          {/* Background Image with Blur */}
-          <div className="absolute inset-0">
-            <img 
-              src="/images/abstract-visualization-of-algorithmic-intelligence (1).png" 
-              alt="Education" 
-              className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
-            />
-          </div>
-          
-          {/* Content Overlay */}
-          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
-            <div className="text-center">
-              <div className="text-xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
-                Education
-              </div>
-            </div>
-          </CardContent>
-          
-          {/* Description */}
-          <div className="absolute bottom-6 left-6 z-10">
-            <p className="text-white drop-shadow-lg font-medium">{items[2].desc}</p>
-          </div>
-        </Card>
+        <AnimatedCard 
+          item={sortedItems[2]} 
+          index={2}
+          isFirst={false}
+          isSecond={false}
+          isThird={true}
+        />
         
         <Card 
           className="md:col-span-2 rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
@@ -557,7 +1488,7 @@ function FeaturedGrid() {
 // ===== Footer =====
 function Footer() {
   return (
-    <footer className="mx-auto max-w-6xl px-3 py-16 text-sm text-muted-foreground">
+    <footer className="mx-auto max-w-6xl py-16 text-sm text-muted-foreground">
       <Separator className="my-8" />
       
       {/* Main Footer Content */}
@@ -589,7 +1520,7 @@ function Footer() {
           <ul className="space-y-2">
             <li><a href="https://builder.limex.com" className="hover:text-foreground transition-colors">Alpha Builder</a></li>
             <li><a href="https://ziplime.limex.com/about" className="hover:text-foreground transition-colors">Ziplime</a></li>
-            <li><a href="https://copilot.limex.com" className="hover:text-foreground transition-colors">Copilot</a></li>
+            <li><a href="https://beta.limex.com" className="hover:text-foreground transition-colors">Platform</a></li>
             <li><a href="https://www.promo.limex.com/quant_trading" className="hover:text-foreground transition-colors">Quantum</a></li>
             <li><a href="https://challenges.limex.com/" className="hover:text-foreground transition-colors">Challenges</a></li>
             <li><a href="https://limex.com/tp/info/learning_center/" className="hover:text-foreground transition-colors">Education</a></li>
@@ -654,6 +1585,8 @@ function Footer() {
 
 export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [surveyCompleted, setSurveyCompleted] = useState(false);
+  const [productScores, setProductScores] = useState<Array<{product: string, points: number, percentage: number}>>([]);
   
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -664,11 +1597,18 @@ export default function App() {
       <Sidebar />
 
       {/* content */}
-      <main className="mx-auto max-w-[980px]">
-        <div className="pt-10 lg:hidden px-3"><Brand /></div>
-        <CenterSearch isChatOpen={isChatOpen} setIsChatOpen={setIsChatOpen} />
-        <FeaturedGrid />
-        <Footer />
+      <main className="lg:ml-60 ml-0 pr-6">
+        <div className="max-w-4xl mx-auto px-3">
+          <div className="pt-10 lg:hidden"><Brand /></div>
+          <CenterSearch 
+            isChatOpen={isChatOpen} 
+            setIsChatOpen={setIsChatOpen}
+            onSurveyCompleted={setSurveyCompleted}
+            onProductScoresChanged={setProductScores}
+          />
+          <FeaturedGrid surveyCompleted={surveyCompleted} productScores={productScores} />
+          <Footer />
+        </div>
       </main>
     </div>
   );
