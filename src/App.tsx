@@ -96,6 +96,9 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   const [activeScenario, setActiveScenario] = useState<'gold' | 'bitcoin' | 'stock' | null>(null);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [, setScenarioStep] = useState(0);
+  const [, setCurrentPhrase] = useState(0);
+  const [, setIsPhraseAnimating] = useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
   
@@ -984,19 +987,33 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   }, [parentActiveScenario]);
 
   // Функция запуска сценария
-    
+  const runScenario = (scenarioType: 'gold' | 'bitcoin' | 'stock') => {
+    const scenario = scenarios[scenarioType];
+    if (!scenario) {
+      return;
+    }
+
+    setActiveScenario(scenarioType);
+    setShowGoalChips(false);
+    setShowCodingChips(false);
+    setShowMentorshipChips(false);
+    setShowToolsChips(false);
+    setShowDynamicChips(false);
+    setShowEmailForm(false);
+    setCurrentQuestion(0);
+
     // Уведомляем родительский компонент
     if (onScenarioChange) {
       onScenarioChange(scenarioType);
     }
-    
+
     // Добавляем сообщение пользователя - полный текст заголовка
-    const userMessageText = scenarioType === 'gold' 
+    const userMessageText = scenarioType === 'gold'
       ? 'Gold just hit record highs — how can I turn insights like that into real trading experience?'
       : scenarioType === 'bitcoin'
       ? 'How can I build a crypto strategy that survives FOMO and flash crashes?'
       : 'IMF warned of a market bubble — how can I test my strategy before the crash?';
-    
+
     const userMessage = {
       id: Date.now(),
       text: userMessageText,
@@ -1004,28 +1021,29 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
     };
     setMessages([userMessage]);
     setIsChatOpen(true);
-    
+
     // Запускаем ответы AI с задержками между сообщениями
     let cumulativeDelay = 500;
-    
+
     scenario.messages.forEach((step, index) => {
       setTimeout(() => {
-        const botMessage = { 
-          id: Date.now() + index + 1000, 
-          text: step.text, 
-          sender: 'bot' as const 
+        const botMessage = {
+          id: Date.now() + index + 1000,
+          text: step.text,
+          sender: 'bot' as const
         };
         setMessages(prev => [...prev, botMessage]);
         setScenarioStep(index + 1);
-        
+
         // После последнего сообщения показываем CTA
         if (index === scenario.messages.length - 1) {
           setTimeout(() => {
             setScenarioStep(scenario.messages.length + 1);
+            setShowEmailForm(true);
           }, 2000);
         }
       }, cumulativeDelay);
-      
+
       cumulativeDelay += step.delay;
     });
   };
@@ -1567,15 +1585,12 @@ function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boo
   };
 
   // Компонент для анимированной карточки
-  const AnimatedCard = ({ 
-    item, 
+  const AnimatedCard = ({
+    item,
     index,
-  }: { 
-    item: any, 
-    index: number, 
-    isFirst: boolean, 
-    isSecond: boolean, 
-    isThird: boolean 
+  }: {
+    item: any,
+    index: number,
   }) => {
     const [isAnimating, setIsAnimating] = useState(false);
 
@@ -1683,14 +1698,11 @@ function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boo
       
       <div className="mx-auto max-w-4xl grid gap-4 grid-cols-3 grid-rows-3 h-[600px]">
         {sortedItems.map((item, index) => (
-        <AnimatedCard 
+          <AnimatedCard
             key={item.productName}
-            item={item} 
+            item={item}
             index={index}
-            isFirst={false}
-          isSecond={false}
-          isThird={false}
-        />
+          />
         ))}
         {/* Заполняем пустые места в сетке 3x3 */}
         {Array.from({ length: 5 }, (_, i) => (
@@ -1845,10 +1857,6 @@ export default function App() {
 
     return () => clearInterval(interval);
   }, [showInitialCTAs, headers.length]);
-  
-  const runScenario = (scenarioType: 'gold' | 'bitcoin' | 'stock') => {
-    setActiveScenario(scenarioType);
-  };
   
   return (
     <div className="min-h-screen bg-background text-foreground">
