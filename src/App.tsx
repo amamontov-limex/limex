@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronUp } from "lucide-react";
 import { sendMessageToOpenAI } from "@/lib/openai";
 
 // ===== Brand =====
@@ -61,11 +61,13 @@ function Sidebar() {
 
 
 // ===== Center Search =====
-function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductScoresChanged }: { 
+function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductScoresChanged, onScenarioChange, activeScenario: parentActiveScenario }: { 
   isChatOpen: boolean; 
   setIsChatOpen: (open: boolean) => void;
   onSurveyCompleted: (completed: boolean) => void;
   onProductScoresChanged: (scores: Array<{product: string, points: number, percentage: number}>) => void;
+  onScenarioChange?: (scenario: 'gold' | 'bitcoin' | 'stock' | null) => void;
+  activeScenario?: 'gold' | 'bitcoin' | 'stock' | null;
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'user' | 'bot', isThinking?: boolean}>>([]);
@@ -90,6 +92,14 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   const [isInterfaceBlocked, setIsInterfaceBlocked] = useState(false);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [productScores, setProductScores] = useState<Array<{product: string, points: number, percentage: number}>>([]);
+  const [currentPhrase, setCurrentPhrase] = useState(0);
+  const [isChatExpanded, setIsChatExpanded] = useState(true);
+  const [isPhraseAnimating, setIsPhraseAnimating] = useState(false);
+  const [activeScenario, setActiveScenario] = useState<'gold' | 'bitcoin' | 'stock' | null>(null);
+  const [scenarioStep, setScenarioStep] = useState(0);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [showInitialCTAs, setShowInitialCTAs] = useState(true);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
   
@@ -98,6 +108,83 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   const codingChips = ["I prefer no coding", "I'm fine using AI to generate code", "I want to learn to code strategies myself"];
   const mentorshipChips = ["No, I don't need", "Yes, I'd like expert insight or copy‑trading", "Yes, and I'm aiming for a professional quant role"];
   const toolsChips = ["None", "I already record trades", "I use bots or signals"];
+  
+  // Анимированные фразы
+  const animatedPhrases = [
+    "New knowledge",
+    "Challenge your ideas", 
+    "Demo trade for free"
+  ];
+  
+  // Сценарии
+  const scenarios = {
+    gold: {
+      title: "🏆 Gold Rally Challenge",
+      subtitle: "Prove your market intuition",
+      messages: [
+        {
+          delay: 1000,
+          text: "Gold just hit $4,300 - the biggest rally since the 70s. Everyone's calling it 'a generational trade.'\n\nThe question is — did you see it coming?"
+        },
+        {
+          delay: 4000,
+          text: "Most young quants know they can spot opportunities… but can't prove it to anyone. No verified track record, no job offer, no capital to trade with."
+        },
+        {
+          delay: 3000,
+          text: "That's exactly why we built Limex Challenges - free competitions where you can trade simulated markets in real time, get a performance certificate, and even secure mentorship or internships in Limex Quantum partner firms."
+        }
+      ],
+      ctaText: "🏆 Prove Your Edge - Join the Challenge",
+      ctaLink: "https://challenges.limex.com",
+      emailTitle: "Get Notified About Next Challenge",
+      emailSubtitle: "New Challenge starts soon - 0 risk, full recognition"
+    },
+    bitcoin: {
+      title: "₿ Bitcoin Crash Alert",
+      subtitle: "Stop trading on emotions",
+      messages: [
+        {
+          delay: 1000,
+          text: "Bitcoin broke $100K… and then flash-crashed 15% within hours. Everyone called it 'market manipulation,' but it's just another FOMO cycle."
+        },
+        {
+          delay: 4000,
+          text: "Retail traders chase the hype. They buy tops, panic-sell bottoms, and never realize it's data — not luck — that separates consistent performance from random wins."
+        },
+        {
+          delay: 3000,
+          text: "With Limex Copilot, you get a personal crypto workspace where data and AI work for you:\n\n• Track on-chain sentiment and volatility in real time\n• Auto-follow strategies of verified traders\n• Get instant AI insights on your portfolio health\n• No coding — just your ideas, tracked and analyzed."
+        }
+      ],
+      ctaText: "🚀 Open My Crypto Workspace",
+      ctaLink: "https://beta.limex.com",
+      emailTitle: "Get Your Crypto Workspace",
+      emailSubtitle: "BTC volatility tracking and AI portfolio insights"
+    },
+    stock: {
+      title: "📊 Stock Bubble Warning",
+      subtitle: "Test your strategy before the crash",
+      messages: [
+        {
+          delay: 1000,
+          text: "IMF just warned of a possible U.S. market bubble — valuations are stretching far beyond fundamentals.\n\nEven top funds are rotating into cash, worried that one correction could erase this year's gains."
+        },
+        {
+          delay: 4000,
+          text: "The truth is — nobody can predict corrections. But you can test how your logic behaves when they happen."
+        },
+        {
+          delay: 3000,
+          text: "With Limex ZipLime, you can stress-test your strategy against real historical data — 2020, 2022, 2008 — and see exactly how it would've performed.\n\nNo coding, no setup — just input your idea and run instant AI-assisted backtests."
+        }
+      ],
+      ctaText: "⚡ Run a Quick Backtest",
+      ctaLink: "https://ziplime.limex.com",
+      emailTitle: "Start Backtesting Your Strategy",
+      emailSubtitle: "S&P volatility rising - test your strategy now"
+    }
+  };
   
   // Функция для генерации динамических вопросов
   const getNextQuestion = (currentAnswers: {goal: string, coding: string, mentorship: string, tools: string}, questionNumber: number) => {
@@ -282,6 +369,11 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
         block: 'start'
       });
     }
+  };
+
+  // Функция для переключения состояния чата
+  const toggleChatExpansion = () => {
+    setIsChatExpanded(!isChatExpanded);
   };
 
   // Плавное появление текста для сообщений
@@ -889,14 +981,90 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
     }
   }, [messages, showMessages]);
 
-  return (
-    <section className="pt-24">
-      <div className="mx-auto max-w-4xl text-center px-3">
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mb-6">Create your investment profile</h1>
+  // Автоматический запуск сценария при выборе из карточек выше
+  useEffect(() => {
+    if (parentActiveScenario && activeScenario !== parentActiveScenario) {
+      runScenario(parentActiveScenario);
+    }
+  }, [parentActiveScenario]);
+
+  // Функция запуска сценария
+  const runScenario = (scenarioType: 'gold' | 'bitcoin' | 'stock') => {
+    const scenario = scenarios[scenarioType];
+    setActiveScenario(scenarioType);
+    setShowInitialCTAs(false);
+    setMessages([]);
+    setScenarioStep(0);
+    setShowEmailForm(false);
+    
+    // Уведомляем родительский компонент
+    if (onScenarioChange) {
+      onScenarioChange(scenarioType);
+    }
+    
+    // Добавляем сообщение пользователя - полный текст заголовка
+    const userMessageText = scenarioType === 'gold' 
+      ? 'Gold just hit record highs — how can I turn insights like that into real trading experience?'
+      : scenarioType === 'bitcoin'
+      ? 'How can I build a crypto strategy that survives FOMO and flash crashes?'
+      : 'IMF warned of a market bubble — how can I test my strategy before the crash?';
+    
+    const userMessage = {
+      id: Date.now(),
+      text: userMessageText,
+      sender: 'user' as const
+    };
+    setMessages([userMessage]);
+    setIsChatOpen(true);
+    
+    // Запускаем ответы AI с задержками между сообщениями
+    let cumulativeDelay = 500;
+    
+    scenario.messages.forEach((step, index) => {
+      setTimeout(() => {
+        const botMessage = { 
+          id: Date.now() + index + 1000, 
+          text: step.text, 
+          sender: 'bot' as const 
+        };
+        setMessages(prev => [...prev, botMessage]);
+        setScenarioStep(index + 1);
         
+        // После последнего сообщения показываем CTA
+        if (index === scenario.messages.length - 1) {
+          setTimeout(() => {
+            setScenarioStep(scenario.messages.length + 1);
+          }, 2000);
+        }
+      }, cumulativeDelay);
+      
+      cumulativeDelay += step.delay;
+    });
+  };
+
+  // Автоматическая смена фраз каждые 3 секунды с плавной анимацией
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsPhraseAnimating(true);
+      
+      // Сначала скрываем текущую фразу
+      setTimeout(() => {
+        setCurrentPhrase((prev) => (prev + 1) % animatedPhrases.length);
+        setIsPhraseAnimating(false);
+      }, 400); // Половина времени анимации для fade out
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [animatedPhrases.length]);
+
+  return (
+    <section className="pt-8">
+      <div className="mx-auto max-w-4xl px-3">
         {/* Chat Container - динамическая высота */}
         <div className={`flex flex-col transition-all duration-[2000ms] ease-out ${
-          isChatOpen ? 'h-[520px]' : 'h-[128px]'
+          isChatOpen 
+            ? (isChatExpanded ? 'h-[520px]' : 'h-[200px]')
+            : 'h-[128px]'
         }`}>
           {/* Messages */}
           {isChatOpen && (
@@ -916,33 +1084,43 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
                                   transitionDelay: showMessages ? `${index === 0 ? 0 : 1000}ms` : '0ms'
                                 }}
                   >
-                    <div className="max-w-[80%]">
-                      <div className={`px-4 py-3 ${
+                    <div className="max-w-[85%]">
+                      {/* Метка отправителя */}
+                      <div className={`text-xs font-medium mb-1 px-2 ${
                         message.sender === 'user' 
-                          ? 'bg-gray-100 text-gray-900 rounded-2xl text-right' 
-                          : 'text-gray-900 text-left'
+                          ? 'text-right text-gray-500' 
+                          : 'text-left text-gray-500'
+                      }`}>
+                        {message.sender === 'user' ? 'You' : 'Limex AI'}
+                      </div>
+                      
+                      {/* Сообщение */}
+                      <div className={`px-5 py-3 rounded-2xl shadow-sm ${
+                        message.sender === 'user' 
+                          ? 'bg-transparent text-gray-900 rounded-tr-sm border border-gray-300' 
+                          : 'bg-gray-100 text-gray-900 rounded-tl-sm border border-gray-200'
                       }`}>
                         {message.isThinking ? (
                           <div className="flex items-center gap-2">
-                            <span>{message.text}</span>
+                            <span className="text-gray-600">{message.text}</span>
                             <div className="flex gap-1">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                              <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <span className={`transition-all duration-500 ease-in-out ${
+                          <div className="flex items-start gap-2">
+                            <span className={`transition-all duration-500 ease-in-out whitespace-pre-wrap ${
                               message.text ? 'opacity-100 transform translate-y-0' : 'opacity-0 transform translate-y-2'
                             }`}>
                               {message.text}
                             </span>
                             {isTyping && message.sender === 'bot' && message.text === "" && (
                               <div className="flex gap-1">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
                               </div>
                             )}
                           </div>
@@ -1058,8 +1236,59 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
               </Badge>
             </div>
           )}
+
+          {/* Email Form */}
+          {activeScenario && showEmailForm && (
+            <div className={`mb-4 p-6 rounded-xl border-2 shadow-lg ${
+              activeScenario === 'gold'
+                ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300'
+                : activeScenario === 'bitcoin'
+                ? 'bg-gradient-to-br from-orange-50 to-red-50 border-orange-300'
+                : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300'
+            }`}>
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-bold text-gray-800 mb-2">{scenarios[activeScenario].emailTitle}</h3>
+                <p className="text-sm text-gray-600">{scenarios[activeScenario].emailSubtitle}</p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                  className={`flex-1 ${
+                    activeScenario === 'gold'
+                      ? 'border-yellow-300 focus:border-yellow-500'
+                      : activeScenario === 'bitcoin'
+                      ? 'border-orange-300 focus:border-orange-500'
+                      : 'border-blue-300 focus:border-blue-500'
+                  }`}
+                />
+                <Button 
+                  className={`font-semibold ${
+                    activeScenario === 'gold'
+                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                      : activeScenario === 'bitcoin'
+                      ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                      : 'bg-blue-500 hover:bg-blue-600 text-white'
+                  }`}
+                  onClick={() => {
+                    if (userEmail) {
+                      // Здесь можно добавить отправку email на сервер
+                      console.log('Email submitted:', userEmail, 'for scenario:', activeScenario);
+                      alert(`Thank you! We'll send you updates about ${scenarios[activeScenario].emailTitle}.`);
+                      window.open(scenarios[activeScenario].ctaLink, '_blank');
+                    }
+                  }}
+                >
+                  Get Started
+                </Button>
+              </div>
+            </div>
+          )}
+          
           {/* AI Interaction Counter */}
-          {isChatOpen && aiInteractionCount > 0 && (
+          {isChatOpen && aiInteractionCount > 0 && !activeScenario && (
             <div className="mb-2 text-center">
               <span className="text-xs text-gray-500">
                 AI interactions: {aiInteractionCount}/50
@@ -1074,12 +1303,14 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
           )}
           
           
-          <div className={`flex items-center rounded-2xl border bg-background px-4 py-3 shadow-sm ${
+          
+          {/* Input field */}
+          <div className={`flex items-center rounded-2xl border-2 border-gray-300 bg-background px-4 py-3 shadow-md ${
             isInterfaceBlocked ? 'opacity-50' : ''
           }`}>
             <Input
-              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base"
-              placeholder={isChatOpen ? (isInterfaceBlocked ? "AI is typing..." : "Type your message...") : "What is your investment goal?"}
+              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base font-semibold placeholder:font-normal"
+              placeholder={isChatOpen ? (isInterfaceBlocked ? "AI is typing..." : "Type your message...") : "Ask Limex AI"}
               aria-label="Ask Limex"
               value={isChatOpen ? newMessage : searchValue}
               onChange={(e) => !isInterfaceBlocked && (isChatOpen ? setNewMessage(e.target.value) : setSearchValue(e.target.value))}
@@ -1090,8 +1321,8 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
               size="icon" 
               className={`ml-2 rounded-xl transition-colors ${
                 (isChatOpen ? newMessage.trim() : searchValue.trim())
-                  ? 'bg-gray-900 hover:bg-gray-800 text-white' 
-                  : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                  ? 'bg-black hover:bg-gray-900 text-white shadow-lg' 
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               } ${isInterfaceBlocked ? 'cursor-not-allowed opacity-50' : ''}`}
               aria-label="Go"
               onClick={() => {
@@ -1099,15 +1330,9 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
                   console.log('🚫 Interface is blocked during AI typing');
                   return;
                 }
-                console.log('🔘 Button clicked!');
-                console.log('🔘 isChatOpen:', isChatOpen);
-                console.log('🔘 newMessage:', newMessage);
-                console.log('🔘 searchValue:', searchValue);
                 if (isChatOpen) {
-                  console.log('🔘 Calling handleSendMessage');
                   handleSendMessage();
                 } else {
-                  console.log('🔘 Calling handleSearch');
                   handleSearch();
                 }
               }}
@@ -1115,6 +1340,30 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
             >
               <ArrowUpRight className="size-5" />
             </Button>
+            
+            {/* Кнопка для сворачивания чата */}
+            {isChatOpen && isChatExpanded && (
+              <Button 
+                size="sm" 
+                className="ml-2 rounded-xl bg-gray-500 text-white hover:bg-gray-600 transition-colors flex items-center gap-1"
+                onClick={toggleChatExpansion}
+              >
+                <ChevronUp className="size-4" />
+                Collapse
+              </Button>
+            )}
+            
+            {/* Кнопка для раскрытия чата */}
+            {isChatOpen && !isChatExpanded && (
+              <Button 
+                size="sm" 
+                className="ml-2 rounded-xl bg-gray-500 text-white hover:bg-gray-600 transition-colors flex items-center gap-1"
+                onClick={toggleChatExpansion}
+              >
+                <ChevronDown className="size-4" />
+                Expand
+              </Button>
+            )}
             
             {/* Кнопка Show для прокрутки до продуктов */}
             {isChatOpen && showProductsButton && (
@@ -1127,28 +1376,110 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
               </Button>
             )}
           </div>
-          {!isChatOpen && (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              {initialChips.map((c, index) => (
-                <Badge 
-                  key={c} 
-                  variant="secondary" 
-                  className={`rounded-full px-3 py-1 text-xs cursor-pointer transition-all duration-200 hover:scale-105 ${
-                    index === 0 
-                      ? 'bg-black text-white hover:bg-gray-800' 
-                      : 'hover:bg-gray-300'
-                  }`}
-                  onClick={() => handleChipClick(c)}
-                >
-                  {c}
-                </Badge>
-              ))}
-            </div>
-          )}
           </div>
         </div>
       </div>
       
+      
+      <div className="mx-auto max-w-4xl px-3">
+        {/* Карточка с АЛЬТЕРНАТИВНЫМ вопросом под чатом */}
+        {activeScenario && (
+          <div className="mt-6">
+            <button
+              onClick={() => {
+                // Показываем ДРУГОЙ вопрос (не текущий)
+                const questionText = activeScenario === 'gold' 
+                  ? 'How can I build a crypto strategy that survives FOMO and flash crashes?'
+                  : activeScenario === 'bitcoin'
+                  ? 'Gold just hit record highs — how can I turn insights like that into real trading experience?'
+                  : 'Gold just hit record highs — how can I turn insights like that into real trading experience?';
+                
+                const newScenario = activeScenario === 'gold'
+                  ? 'bitcoin' as const
+                  : activeScenario === 'bitcoin'
+                  ? 'gold' as const
+                  : 'gold' as const;
+                
+                // Переключаем сценарий
+                setActiveScenario(newScenario);
+                runScenario(newScenario);
+              }}
+              className="w-full bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:bg-gray-200 cursor-pointer text-left"
+            >
+              <div className="flex items-start gap-4">
+                {/* Показываем иконку ДРУГОГО сценария */}
+                {activeScenario === 'gold' ? (
+                  <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="40" fill="#F7931A" stroke="#E07A00" strokeWidth="3"/>
+                    <text x="50" y="65" fontSize="50" fill="white" textAnchor="middle" fontWeight="bold" fontFamily="Arial">₿</text>
+                  </svg>
+                ) : activeScenario === 'bitcoin' ? (
+                  <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                ) : (
+                  <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+                <div className="flex-1">
+                  <p className="text-base md:text-lg font-medium text-gray-800 leading-relaxed">
+                    {activeScenario === 'gold' 
+                      ? 'How can I build a crypto strategy that survives FOMO and flash crashes?'
+                      : activeScenario === 'bitcoin'
+                      ? 'Gold just hit record highs — how can I turn insights like that into real trading experience?'
+                      : 'Gold just hit record highs — how can I turn insights like that into real trading experience?'
+                    }
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* CSS анимации для фраз */}
+      <style>{`
+        @keyframes phraseFadeIn {
+          0% {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        @keyframes phraseFadeOut {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+          }
+        }
+        
+        .phrase-animate-in {
+          animation: phraseFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        
+        .phrase-animate-out {
+          animation: phraseFadeOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+      `}</style>
     </section>
   );
 }
@@ -1157,52 +1488,28 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
 function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boolean, productScores: Array<{product: string, points: number, percentage: number}> }) {
   const items = [
     {
-      title: "Platform",
-      desc: "Best instruments for traders in one platform",
-      link: "https://beta.limex.com",
-      productName: "Platform"
-    },
-    {
       title: "Challenges",
       desc: "For quants, algo traders and researchers",
       link: "https://challenges.limex.com",
       productName: "Challenges"
     },
     {
-      title: "Research",
-      desc: "Backtest your ideas with Ziplime",
-      link: null, // Coming soon
-      productName: "Research"
-    },
-    {
-      title: "Traders Journal",
-      desc: "Your trading thoughts and more",
-      link: null, // No link specified
-      productName: "Trader Journal"
-    },
-    {
-      title: "Alpha Builder",
-      desc: "Intelligent stock selection and portfolio optimization",
-      link: "https://builder.limex.com",
-      productName: "Alpha Builder"
-    },
-    {
-      title: "ZipLime",
-      desc: "The legendary backtester — no setup needed.",
-      link: "https://ziplime.limex.com",
-      productName: "ZipLime"
-    },
-    {
-      title: "Quantum",
-      desc: "Professional quant trading and mentorship program",
+      title: "Education",
+      desc: "Learn algorithmic trading from experts",
       link: "https://promo.limex.com",
-      productName: "Quantum"
+      productName: "Education"
     },
     {
-      title: "Quantum Course",
-      desc: "Advanced algorithmic trading course",
-      link: "https://promo.limex.com",
-      productName: "Quantum Course"
+      title: "Copy Trading",
+      desc: "Follow successful traders and strategies",
+      link: "https://beta.limex.com",
+      productName: "Copy Trading"
+    },
+    {
+      title: "Free Trade",
+      desc: "Demo trade for free without risk",
+      link: "https://beta.limex.com",
+      productName: "Free Trade"
     },
   ];
 
@@ -1303,19 +1610,30 @@ function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boo
       }
     }, [surveyCompleted, productScores]);
 
-    // Определяем размеры карточки в зависимости от позиции
+    // Определяем размеры карточки для сетки 3x3 (каждая карточка 1x1)
     const getCardSize = () => {
-      if (isFirst) return "md:col-span-2 rounded-3xl overflow-hidden h-[340px]";
-      if (isSecond) return "rounded-3xl overflow-hidden h-[340px]";
-      if (isThird) return "rounded-3xl overflow-hidden h-[260px]";
-      return "rounded-3xl overflow-hidden h-[260px]";
+      return "rounded-3xl overflow-hidden h-full w-full";
     };
 
-    // Определяем размер текста в зависимости от позиции
+    // Определяем размер текста для карточек 1x1
     const getTextSize = () => {
-      if (isFirst) return "text-5xl";
-      if (isSecond) return "text-2xl";
-      return "text-xl";
+      return "text-lg";
+    };
+
+    // Определяем изображение для каждой карточки
+    const getCardImage = () => {
+      switch(item.productName) {
+        case 'Challenges':
+          return '/images/challenges.png';
+        case 'Education':
+          return '/images/Chess.png';
+        case 'Copy Trading':
+          return '/images/Person .png';
+        case 'Free Trade':
+          return '/images/Journal.png';
+        default:
+          return '/images/abstract-representation-of-a-digital-copilot-in-a-.png';
+      }
     };
 
     return (
@@ -1332,7 +1650,7 @@ function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boo
         {/* Background Image with Blur */}
         <div className="absolute inset-0">
           <img 
-            src="/images/abstract-representation-of-a-digital-copilot-in-a-.png" 
+            src={getCardImage()} 
             alt={item.title} 
             className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
           />
@@ -1384,102 +1702,21 @@ function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boo
         }
       `}</style>
       
-      <div className="mx-auto max-w-6xl grid gap-4 md:grid-cols-3">
+      <div className="mx-auto max-w-4xl grid gap-4 grid-cols-3 grid-rows-3 h-[600px]">
+        {sortedItems.map((item, index) => (
         <AnimatedCard 
-          item={sortedItems[0]} 
-          index={0}
-          isFirst={true}
+            key={item.productName}
+            item={item} 
+            index={index}
+            isFirst={false}
           isSecond={false}
           isThird={false}
         />
-        
-        <AnimatedCard 
-          item={sortedItems[1]} 
-          index={1}
-          isFirst={false}
-          isSecond={true}
-          isThird={false}
-        />
-        
-        <AnimatedCard 
-          item={sortedItems[2]} 
-          index={2}
-          isFirst={false}
-          isSecond={false}
-          isThird={true}
-        />
-        
-        <Card 
-          className="md:col-span-2 rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
-        >
-          {/* Background Image with Blur */}
-          <div className="absolute inset-0">
-            <img 
-              src="/images/traders-book-has-writing-in-it-and-data-on-the-cen.png" 
-              alt="Traders Journal" 
-              className="w-full h-full object-cover filter blur-[7px] brightness-75 group-hover:blur-[3px] group-hover:brightness-90 transition-all duration-500"
-            />
-          </div>
-          
-          {/* Content Overlay */}
-          <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
-            <div className="text-center">
-              <div className="text-xl font-semibold tracking-tight text-white drop-shadow-lg group-hover:scale-105 transition-transform duration-300">
-                {items[3].title}
-              </div>
-            </div>
-          </CardContent>
-          
-          {/* Description */}
-          <div className="absolute bottom-6 left-6 z-10">
-            <p className="text-white drop-shadow-lg font-medium">{items[3].desc}</p>
-          </div>
-          
-          {/* Coming Soon Overlay */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 ease-out z-20">
-            <div className="text-3xl font-bold text-white drop-shadow-2xl transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500 ease-out">
-              Coming Soon
-            </div>
-          </div>
-        </Card>
-        
-        <div className="flex flex-col gap-4">
-          <Card 
-            className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
-            onClick={() => handleCardClick(items[5].link)}
-          >
-            <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
-              <div className="text-center">
-                <div className="text-xl font-semibold tracking-tight text-gray-900 group-hover:scale-105 transition-transform duration-300">
-                  {items[5].title}
-                </div>
-              </div>
-            </CardContent>
-            
-            {/* Description */}
-            <div className="absolute bottom-6 left-6 z-10">
-              <p className="text-gray-700 font-medium">{items[5].desc}</p>
-            </div>
-          </Card>
-          
-          <Card 
-            className="rounded-3xl overflow-hidden h-[260px] bg-gray-100 relative cursor-pointer hover:bg-gray-200 transition-all duration-300 group"
-            onClick={() => handleCardClick(items[4].link)}
-          >
-            <CardContent className="p-6 h-full flex items-center justify-center relative z-10">
-              <div className="text-center">
-                <div className="text-xl font-semibold tracking-tight text-gray-900 group-hover:scale-105 transition-transform duration-300">
-                  {items[4].title}
-                </div>
-              </div>
-            </CardContent>
-            
-            {/* Description */}
-            <div className="absolute bottom-6 left-6 z-10">
-              <p className="text-gray-700 font-medium">{items[4].desc}</p>
-            </div>
-          </Card>
-        </div>
+        ))}
+        {/* Заполняем пустые места в сетке 3x3 */}
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={`empty-${i}`} className="bg-transparent"></div>
+        ))}
       </div>
     </section>
   );
@@ -1587,6 +1824,52 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [productScores, setProductScores] = useState<Array<{product: string, points: number, percentage: number}>>([]);
+  const [activeScenario, setActiveScenario] = useState<'gold' | 'bitcoin' | 'stock' | null>(null);
+  const [showInitialCTAs, setShowInitialCTAs] = useState(true);
+  const [currentHeaderIndex, setCurrentHeaderIndex] = useState(0);
+  
+  // Заголовки с соответствующими сценариями
+  const headers = [
+    {
+      text: "Gold just hit record highs — how can I turn insights like that into real trading experience?",
+      scenario: 'gold' as const,
+      icon: (
+        <svg className="w-12 h-12 md:w-14 md:h-14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+          <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+          <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+          <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+          <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    {
+      text: "How can I build a crypto strategy that survives FOMO and flash crashes?",
+      scenario: 'bitcoin' as const,
+      icon: (
+        <svg className="w-12 h-12 md:w-14 md:h-14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="40" fill="#F7931A" stroke="#E07A00" strokeWidth="3"/>
+          <text x="50" y="65" fontSize="50" fill="white" textAnchor="middle" fontWeight="bold" fontFamily="Arial">₿</text>
+        </svg>
+      )
+    }
+  ];
+  
+  // Автоматическая смена заголовков каждые 10 секунд
+  useEffect(() => {
+    if (!showInitialCTAs) return; // Не меняем, если CTA скрыты
+    
+    const interval = setInterval(() => {
+      setCurrentHeaderIndex((prev) => (prev + 1) % headers.length);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [showInitialCTAs, headers.length]);
+  
+  const runScenario = (scenarioType: 'gold' | 'bitcoin' | 'stock') => {
+    setActiveScenario(scenarioType);
+  };
   
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -1600,12 +1883,41 @@ export default function App() {
       <main className="lg:ml-60 ml-0 pr-6">
         <div className="max-w-4xl mx-auto px-3">
           <div className="pt-10 lg:hidden"><Brand /></div>
+          
+          {/* Кликабельный заголовок с автосменой */}
+          {showInitialCTAs && (
+            <section className="pt-24 pb-8">
+              <div className="mx-auto max-w-4xl text-center px-3">
+                <button
+                  onClick={() => {
+                    setShowInitialCTAs(false);
+                    setActiveScenario(headers[currentHeaderIndex].scenario);
+                  }}
+                  className="group w-full text-center transition-all duration-300 hover:bg-gray-200 rounded-2xl p-4 cursor-pointer"
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    {/* Иконка сценария */}
+                    {headers[currentHeaderIndex].icon}
+                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
+                      {headers[currentHeaderIndex].text}
+                    </h1>
+                    <ArrowUpRight className="size-6 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </button>
+              </div>
+            </section>
+          )}
+          
           <CenterSearch 
             isChatOpen={isChatOpen} 
             setIsChatOpen={setIsChatOpen}
             onSurveyCompleted={setSurveyCompleted}
             onProductScoresChanged={setProductScores}
+            onScenarioChange={setActiveScenario}
+            activeScenario={activeScenario}
           />
+          
+          {/* Показываем карточки продуктов всегда под чатом */}
           <FeaturedGrid surveyCompleted={surveyCompleted} productScores={productScores} />
           <Footer />
         </div>
@@ -1613,3 +1925,4 @@ export default function App() {
     </div>
   );
 }
+
