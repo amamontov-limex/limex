@@ -92,18 +92,13 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   const [isInterfaceBlocked, setIsInterfaceBlocked] = useState(false);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [productScores, setProductScores] = useState<Array<{product: string, points: number, percentage: number}>>([]);
-  const [currentPhrase, setCurrentPhrase] = useState(0);
   const [isChatExpanded, setIsChatExpanded] = useState(true);
-  const [isPhraseAnimating, setIsPhraseAnimating] = useState(false);
   const [activeScenario, setActiveScenario] = useState<'gold' | 'bitcoin' | 'stock' | null>(null);
-  const [scenarioStep, setScenarioStep] = useState(0);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [userEmail, setUserEmail] = useState("");
-  const [showInitialCTAs, setShowInitialCTAs] = useState(true);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
   
-  const initialChips = ["Find products for you", "What about my portfolio?", "Research", "Challenges", "Products"];
   const goalChips = ["Copy Trading", "Education", "Backtest my ideas", "AI instruments for trading"];
   const codingChips = ["I prefer no coding", "I'm fine using AI to generate code", "I want to learn to code strategies myself"];
   const mentorshipChips = ["No, I don't need", "Yes, I'd like expert insight or copy‑trading", "Yes, and I'm aiming for a professional quant role"];
@@ -989,13 +984,6 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   }, [parentActiveScenario]);
 
   // Функция запуска сценария
-  const runScenario = (scenarioType: 'gold' | 'bitcoin' | 'stock') => {
-    const scenario = scenarios[scenarioType];
-    setActiveScenario(scenarioType);
-    setShowInitialCTAs(false);
-    setMessages([]);
-    setScenarioStep(0);
-    setShowEmailForm(false);
     
     // Уведомляем родительский компонент
     if (onScenarioChange) {
@@ -1388,12 +1376,6 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
             <button
               onClick={() => {
                 // Показываем ДРУГОЙ вопрос (не текущий)
-                const questionText = activeScenario === 'gold' 
-                  ? 'How can I build a crypto strategy that survives FOMO and flash crashes?'
-                  : activeScenario === 'bitcoin'
-                  ? 'Gold just hit record highs — how can I turn insights like that into real trading experience?'
-                  : 'Gold just hit record highs — how can I turn insights like that into real trading experience?';
-                
                 const newScenario = activeScenario === 'gold'
                   ? 'bitcoin' as const
                   : activeScenario === 'bitcoin'
@@ -1587,10 +1569,7 @@ function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boo
   // Компонент для анимированной карточки
   const AnimatedCard = ({ 
     item, 
-    index, 
-    isFirst, 
-    isSecond, 
-    isThird 
+    index,
   }: { 
     item: any, 
     index: number, 
