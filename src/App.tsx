@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUpRight, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { sendMessageToOpenAI } from "@/lib/openai";
 
 // ===== Brand =====
@@ -61,14 +61,13 @@ function Sidebar() {
 
 
 // ===== Center Search =====
-function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductScoresChanged, onScenarioChange, activeScenario: parentActiveScenario, currentHeaderIndex }: { 
+function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductScoresChanged, onScenarioChange, activeScenario: parentActiveScenario }: { 
   isChatOpen: boolean; 
   setIsChatOpen: (open: boolean) => void;
   onSurveyCompleted: (completed: boolean) => void;
   onProductScoresChanged: (scores: Array<{product: string, points: number, percentage: number}>) => void;
   onScenarioChange?: (scenario: 'gold' | 'bitcoin' | 'stock' | null) => void;
   activeScenario?: 'gold' | 'bitcoin' | 'stock' | null;
-  currentHeaderIndex: number;
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'user' | 'bot', isThinking?: boolean}>>([]);
@@ -93,15 +92,11 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   const [isInterfaceBlocked, setIsInterfaceBlocked] = useState(false);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const [productScores, setProductScores] = useState<Array<{product: string, points: number, percentage: number}>>([]);
-  const [isChatExpanded, setIsChatExpanded] = useState(true);
   const [activeScenario, setActiveScenario] = useState<'gold' | 'bitcoin' | 'stock' | null>(null);
-  const [showEmailForm, setShowEmailForm] = useState(false);
-  const [userEmail, setUserEmail] = useState("");
   const [, setScenarioStep] = useState(0);
   const [, setCurrentPhrase] = useState(0);
   const [, setIsPhraseAnimating] = useState(false);
   const [isFromSuggestedQuestion, setIsFromSuggestedQuestion] = useState(false);
-  const [askedQuestions, setAskedQuestions] = useState<Set<string>>(new Set());
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
   
@@ -370,11 +365,6 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
         block: 'start'
       });
     }
-  };
-
-  // Функция для переключения состояния чата
-  const toggleChatExpansion = () => {
-    setIsChatExpanded(!isChatExpanded);
   };
 
   // Плавное появление текста для сообщений
@@ -1215,9 +1205,6 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
                         // Устанавливаем флаг, что это предложенный вопрос
                         setIsFromSuggestedQuestion(true);
                         
-                        // Добавляем вопрос в список заданных
-                        setAskedQuestions(prev => new Set([...prev, question.text]));
-                        
                         // Запускаем соответствующий сценарий
                         runScenario(question.scenario);
                       }}
@@ -1888,7 +1875,6 @@ export default function App() {
             onProductScoresChanged={setProductScores}
             onScenarioChange={setActiveScenario}
             activeScenario={activeScenario}
-            currentHeaderIndex={currentHeaderIndex}
           />
           
           {/* Показываем карточки продуктов всегда под чатом */}
