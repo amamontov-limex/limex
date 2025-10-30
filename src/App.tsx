@@ -941,7 +941,6 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
     setShowMentorshipChips(false);
     setShowToolsChips(false);
     setShowDynamicChips(false);
-    setShowEmailForm(false);
     setCurrentQuestion(0);
 
     // Уведомляем родительский компонент
