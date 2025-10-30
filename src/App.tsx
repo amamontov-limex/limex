@@ -61,13 +61,14 @@ function Sidebar() {
 
 
 // ===== Center Search =====
-function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductScoresChanged, onScenarioChange, activeScenario: parentActiveScenario }: { 
+function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductScoresChanged, onScenarioChange, activeScenario: parentActiveScenario, currentHeaderIndex }: { 
   isChatOpen: boolean; 
   setIsChatOpen: (open: boolean) => void;
   onSurveyCompleted: (completed: boolean) => void;
   onProductScoresChanged: (scores: Array<{product: string, points: number, percentage: number}>) => void;
   onScenarioChange?: (scenario: 'gold' | 'bitcoin' | 'stock' | null) => void;
   activeScenario?: 'gold' | 'bitcoin' | 'stock' | null;
+  currentHeaderIndex: number;
 }) {
   const [searchValue, setSearchValue] = useState("");
   const [messages, setMessages] = useState<Array<{id: number, text: string, sender: 'user' | 'bot', isThinking?: boolean}>>([]);
@@ -99,6 +100,8 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   const [, setScenarioStep] = useState(0);
   const [, setCurrentPhrase] = useState(0);
   const [, setIsPhraseAnimating] = useState(false);
+  const [isFromSuggestedQuestion, setIsFromSuggestedQuestion] = useState(false);
+  const [askedQuestions, setAskedQuestions] = useState<Set<string>>(new Set());
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
   
@@ -121,15 +124,15 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       subtitle: "Prove your market intuition",
       messages: [
         {
-          delay: 1000,
+          delay: 0,
           text: "Gold just hit $4,300 - the biggest rally since the 70s. Everyone's calling it 'a generational trade.'\n\nThe question is — did you see it coming?"
         },
         {
-          delay: 4000,
+          delay: 0,
           text: "Most young quants know they can spot opportunities… but can't prove it to anyone. No verified track record, no job offer, no capital to trade with."
         },
         {
-          delay: 3000,
+          delay: 0,
           text: "That's exactly why we built Limex Challenges - free competitions where you can trade simulated markets in real time, get a performance certificate, and even secure mentorship or internships in Limex Quantum partner firms."
         }
       ],
@@ -143,15 +146,15 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       subtitle: "Stop trading on emotions",
       messages: [
         {
-          delay: 1000,
+          delay: 0,
           text: "Bitcoin broke $100K… and then flash-crashed 15% within hours. Everyone called it 'market manipulation,' but it's just another FOMO cycle."
         },
         {
-          delay: 4000,
+          delay: 0,
           text: "Retail traders chase the hype. They buy tops, panic-sell bottoms, and never realize it's data — not luck — that separates consistent performance from random wins."
         },
         {
-          delay: 3000,
+          delay: 0,
           text: "With Limex Copilot, you get a personal crypto workspace where data and AI work for you:\n\n• Track on-chain sentiment and volatility in real time\n• Auto-follow strategies of verified traders\n• Get instant AI insights on your portfolio health\n• No coding — just your ideas, tracked and analyzed."
         }
       ],
@@ -165,15 +168,15 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       subtitle: "Test your strategy before the crash",
       messages: [
         {
-          delay: 1000,
+          delay: 0,
           text: "IMF just warned of a possible U.S. market bubble — valuations are stretching far beyond fundamentals.\n\nEven top funds are rotating into cash, worried that one correction could erase this year's gains."
         },
         {
-          delay: 4000,
+          delay: 0,
           text: "The truth is — nobody can predict corrections. But you can test how your logic behaves when they happen."
         },
         {
-          delay: 3000,
+          delay: 0,
           text: "With Limex ZipLime, you can stress-test your strategy against real historical data — 2020, 2022, 2008 — and see exactly how it would've performed.\n\nNo coding, no setup — just input your idea and run instant AI-assisted backtests."
         }
       ],
@@ -418,34 +421,14 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       const userMessage = { id: 1, text: searchValue, sender: 'user' as const };
       setMessages([userMessage]);
       
-      // Add "AI is thinking" message
-      const thinkingMessage = { id: 2, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
-      setMessages(prev => [...prev, thinkingMessage]);
+      // Add bot response with login CTA button
+      const botMessage = { id: 2, text: "", sender: 'bot' as const };
+      setMessages(prev => [...prev, botMessage]);
       
-      // Send to OpenAI
-      const openAIMessages = [
-        { role: 'user' as const, content: searchValue }
-      ];
-      
-      sendMessageToOpenAI(openAIMessages)
-        .then((botResponse) => {
-          // Remove thinking message and add real response
-          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-          const botMessage = { id: 2, text: botResponse, sender: 'bot' as const };
-          setMessages(prev => [...prev, botMessage]);
-          
-          // Show goal chips if AI asks about primary goal
-          if (botResponse.toLowerCase().includes('primary goal') || botResponse.toLowerCase().includes('what is your')) {
-            setShowGoalChips(true);
-          }
-        })
-        .catch((error) => {
-          console.error('Error getting AI response:', error);
-          // Remove thinking message and add error
-          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-          const errorMessage = { id: 2, text: "Sorry, there was an error processing your request. Please try again.", sender: 'bot' as const };
-          setMessages(prev => [...prev, errorMessage]);
-        });
+      // Use typing effect for the response with CTA format
+      setTimeout(() => {
+        typeMessage("Please authorize to continue[CTA]Log in[/CTA][LINK]https://beta.limex.com[/LINK]");
+      }, 100);
       
       setSearchValue(""); // Clear the search field
     }
@@ -816,9 +799,9 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       })
       .catch((error) => {
         console.error('Error getting AI response:', error);
-        // Remove thinking message and add error
+        // Remove thinking message and add authorization CTA button
         setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-        const errorMessage = { id: Date.now() + 2, text: "Sorry, there was an error processing your request. Please try again.", sender: 'bot' as const };
+        const errorMessage = { id: Date.now() + 2, text: "Please authorize to continue[CTA]Log in[/CTA][LINK]https://beta.limex.com[/LINK]", sender: 'bot' as const };
         setMessages(prev => [...prev, errorMessage]);
       });
   };
@@ -915,46 +898,14 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       }
       
       // Обычная обработка для случаев вне опроса
-      // Add "AI is thinking" message
-      const thinkingMessage = { id: Date.now() + 1, text: "AI is thinking...", sender: 'bot' as const, isThinking: true };
-      setMessages(prev => [...prev, thinkingMessage]);
+      // Показываем кнопку входа
+      const botMessage = { id: Date.now() + 1, text: "", sender: 'bot' as const };
+      setMessages(prev => [...prev, botMessage]);
       
-      // Prepare messages for OpenAI (include conversation history)
-      const openAIMessages = [
-        ...messages.map(msg => ({ 
-          role: msg.sender === 'user' ? 'user' as const : 'assistant' as const, 
-          content: msg.text 
-        })),
-        { role: 'user' as const, content: newMessage }
-      ];
-      
-      // Get response from OpenAI
-      sendMessageToOpenAI(openAIMessages)
-        .then((botResponse) => {
-          // Remove thinking message and add real response with typing effect
-          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-          const botMessage = { id: Date.now() + 2, text: "", sender: 'bot' as const };
-          setMessages(prev => [...prev, botMessage]);
-          
-          // Use typing effect for the response
-          setTimeout(() => {
-            typeMessage(botResponse);
-          }, 100);
-          
-          // НЕ показываем чипы автоматически - они управляются только через handleChipClick
-        })
-        .catch((error) => {
-          console.error('Error getting AI response:', error);
-          // Remove thinking message and add error with typing effect
-          setMessages(prev => prev.filter(msg => msg.id !== thinkingMessage.id));
-          const errorMessage = { id: Date.now() + 2, text: "", sender: 'bot' as const };
-          setMessages(prev => [...prev, errorMessage]);
-          
-          // Use typing effect for the error message
-          setTimeout(() => {
-            typeMessage("Sorry, there was an error processing your request. Please try again.");
-          }, 100);
-        });
+      // Use typing effect for the response with CTA format
+      setTimeout(() => {
+        typeMessage("Please authorize to continue[CTA]Log in[/CTA][LINK]https://beta.limex.com[/LINK]");
+      }, 100);
     }
   };
 
@@ -994,6 +945,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
     }
 
     setActiveScenario(scenarioType);
+    setIsFromSuggestedQuestion(true);
     setShowGoalChips(false);
     setShowCodingChips(false);
     setShowMentorshipChips(false);
@@ -1020,13 +972,33 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       sender: 'user' as const
     };
     setMessages([userMessage]);
-    setIsChatOpen(true);
+    if (!isChatOpen) {
+      setIsChatOpen(true);
+    }
 
     // Запускаем ответы AI с задержками между сообщениями
-    let cumulativeDelay = 500;
+    let thinkingDelay = 500; // Задержка для показа "thinking"
+    let messageDelay = 500; // Задержка для показа сообщения
 
     scenario.messages.forEach((step, index) => {
+      // Добавляем "AI is thinking..." перед каждым сообщением
       setTimeout(() => {
+        const thinkingMessage = {
+          id: Date.now() + index + 500,
+          text: "AI is thinking...",
+          sender: 'bot' as const,
+          isThinking: true
+        };
+        setMessages(prev => [...prev, thinkingMessage]);
+      }, thinkingDelay);
+      
+      // Через 2 секунды удаляем "thinking" и показываем реальное сообщение
+      messageDelay = thinkingDelay + 2000;
+      
+      setTimeout(() => {
+        // Удаляем "thinking" и добавляем реальное сообщение
+        setMessages(prev => prev.filter(msg => !msg.isThinking));
+        
         const botMessage = {
           id: Date.now() + index + 1000,
           text: step.text,
@@ -1035,16 +1007,21 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
         setMessages(prev => [...prev, botMessage]);
         setScenarioStep(index + 1);
 
-        // После последнего сообщения показываем CTA
+        // После последнего сообщения добавляем CTA как сообщение
         if (index === scenario.messages.length - 1) {
           setTimeout(() => {
-            setScenarioStep(scenario.messages.length + 1);
-            setShowEmailForm(true);
+            const ctaMessage = {
+              id: Date.now() + index + 2000,
+              text: `[CTA]${scenario.ctaText}[/CTA]`,
+              sender: 'bot' as const
+            };
+            setMessages(prev => [...prev, ctaMessage]);
           }, 2000);
         }
-      }, cumulativeDelay);
+      }, messageDelay);
 
-      cumulativeDelay += step.delay;
+      // Готовим задержку для следующего сообщения
+      thinkingDelay = messageDelay + step.delay;
     });
   };
 
@@ -1065,20 +1042,29 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
 
   return (
     <section className="pt-8">
-      <div className="mx-auto max-w-4xl px-3">
-        {/* Chat Container - динамическая высота */}
+      <div className="mx-auto max-w-5xl px-3">
+        {/* Заголовок Limex AI - над чатом, показываем только если есть сообщения из предложенных вопросов */}
+        {isChatOpen && messages.length > 0 && isFromSuggestedQuestion && (
+          <div className="px-3 pb-3 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Limex AI</h2>
+          </div>
+        )}
+        
+        {/* Chat Container - строго фиксированная высота */}
         <div className={`flex flex-col transition-all duration-[2000ms] ease-out ${
           isChatOpen 
-            ? (isChatExpanded ? 'h-[520px]' : 'h-[200px]')
-            : 'h-[128px]'
+            ? (activeScenario ? 'h-[650px] max-h-[650px]' : 'h-[450px] max-h-[450px]')
+            : 'h-[128px] max-h-[128px]'
         }`}>
           {/* Messages */}
           {isChatOpen && (
-            <div ref={messagesContainerRef} className="flex-1 px-3 py-4 overflow-y-auto">
-              <div className={`space-y-6 transition-all duration-1000 ease-in-out ${
-                showMessages ? 'opacity-100' : 'opacity-0'
-              }`}>
-                {messages.map((message, index) => (
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              {/* Скроллируемая область с сообщениями */}
+              <div ref={messagesContainerRef} className={`flex-1 min-h-0 px-3 py-4 ${showMessages ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+                <div className={`space-y-6 transition-all duration-1000 ease-in-out ${
+                  showMessages ? 'opacity-100' : 'opacity-0'
+                }`}>
+                  {messages.map((message, index) => (
                   <div 
                     key={message.id} 
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} transition-all duration-2000 ease-in-out ${
@@ -1115,6 +1101,33 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
                               <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
                             </div>
                           </div>
+                        ) : message.text.includes('[CTA]') ? (
+                          // Рендерим текст и CTA кнопку
+                          (() => {
+                            const ctaMatch = message.text.match(/\[CTA\](.*?)\[\/CTA\]/);
+                            const linkMatch = message.text.match(/\[LINK\](.*?)\[\/LINK\]/);
+                            const ctaText = ctaMatch ? ctaMatch[1] : '';
+                            const ctaLink = linkMatch ? linkMatch[1] : (activeScenario ? scenarios[activeScenario as keyof typeof scenarios]?.ctaLink : '');
+                            const messageText = message.text.replace(/\[CTA\].*?\[\/CTA\]/, '').replace(/\[LINK\].*?\[\/LINK\]/, '').trim();
+                            
+                            return (
+                              <div className="flex flex-col gap-3">
+                                {messageText && (
+                                  <span className="whitespace-pre-wrap">{messageText}</span>
+                                )}
+                                <Button
+                                  className="bg-black hover:bg-gray-800 text-white font-semibold px-6 py-2 rounded-lg shadow-md transition-all w-fit"
+                                  onClick={() => {
+                                    if (ctaLink) {
+                                      window.open(ctaLink, '_blank');
+                                    }
+                                  }}
+                                >
+                                  {ctaText}
+                                </Button>
+                              </div>
+                            );
+                          })()
                         ) : (
                           <div className="flex items-start gap-2">
                             <span className={`transition-all duration-500 ease-in-out whitespace-pre-wrap ${
@@ -1136,12 +1149,96 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
                   </div>
                 ))}
                 <div ref={messagesEndRef} />
+                </div>
               </div>
             </div>
           )}
 
           {/* Search Interface - фиксированное внизу */}
           <div className="flex-shrink-0">
+          {/* Also Ask Section - над полем ввода, показываем только для сценариев */}
+          {isChatOpen && isFromSuggestedQuestion && (() => {
+            // Создаем массив всех вопросов с их данными
+            const allQuestions = [
+              {
+                scenario: 'gold' as const,
+                text: "Gold just hit record highs — how can I turn insights like that into real trading experience?",
+                icon: (
+                  <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                    <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )
+              },
+              {
+                scenario: 'bitcoin' as const,
+                text: "How can I build a crypto strategy that survives FOMO and flash crashes?",
+                icon: (
+                  <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="40" fill="#F7931A" stroke="#E07A00" strokeWidth="3"/>
+                    <text x="50" y="65" fontSize="50" fill="white" textAnchor="middle" fontWeight="bold" fontFamily="Arial">₿</text>
+                  </svg>
+                )
+              },
+              {
+                scenario: 'stock' as const,
+                text: "How can I be confident my trading logic would hold up in a volatile market?",
+                icon: (
+                  <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="20" y="15" width="60" height="70" rx="3" fill="#8B7355" stroke="#5D4E37" strokeWidth="2"/>
+                    <rect x="25" y="20" width="50" height="60" fill="#F5E6D3"/>
+                    <line x1="30" y1="30" x2="70" y2="30" stroke="#8B7355" strokeWidth="2"/>
+                    <line x1="30" y1="40" x2="70" y2="40" stroke="#8B7355" strokeWidth="2"/>
+                    <line x1="30" y1="50" x2="70" y2="50" stroke="#8B7355" strokeWidth="2"/>
+                    <line x1="30" y1="60" x2="60" y2="60" stroke="#8B7355" strokeWidth="2"/>
+                    <circle cx="50" cy="70" r="3" fill="#8B7355"/>
+                  </svg>
+                )
+              }
+            ];
+            
+            // Фильтруем вопросы - исключаем АКТИВНЫЙ сценарий (показываем только 2 других)
+            const filteredQuestions = allQuestions.filter((q) => q.scenario !== activeScenario);
+            
+            return (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold mb-2 text-gray-700 px-2">Also Ask</h3>
+                <div className="space-y-2">
+                  {filteredQuestions.map((question, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        // Устанавливаем флаг, что это предложенный вопрос
+                        setIsFromSuggestedQuestion(true);
+                        
+                        // Добавляем вопрос в список заданных
+                        setAskedQuestions(prev => new Set([...prev, question.text]));
+                        
+                        // Запускаем соответствующий сценарий
+                        runScenario(question.scenario);
+                      }}
+                      className="w-full bg-white border border-gray-200 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-200 hover:border-gray-300 cursor-pointer text-left group"
+                    >
+                      <div className="flex items-center gap-2">
+                        {question.icon}
+                        <p className="text-xs font-normal text-gray-700 group-hover:text-gray-900 flex-1">
+                          {question.text}
+                        </p>
+                        <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+          
           {isChatOpen && showGoalChips && (
             <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
               {goalChips.map((c) => (
@@ -1242,134 +1339,46 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
               </Badge>
             </div>
           )}
-
-          {/* Email Form */}
-          {activeScenario && showEmailForm && (
-            <div className={`mb-4 p-6 rounded-xl border-2 shadow-lg ${
-              activeScenario === 'gold'
-                ? 'bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300'
-                : activeScenario === 'bitcoin'
-                ? 'bg-gradient-to-br from-orange-50 to-red-50 border-orange-300'
-                : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300'
-            }`}>
-              <div className="text-center mb-4">
-                <h3 className="text-lg font-bold text-gray-800 mb-2">{scenarios[activeScenario].emailTitle}</h3>
-                <p className="text-sm text-gray-600">{scenarios[activeScenario].emailSubtitle}</p>
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={userEmail}
-                  onChange={(e) => setUserEmail(e.target.value)}
-                  className={`flex-1 ${
-                    activeScenario === 'gold'
-                      ? 'border-yellow-300 focus:border-yellow-500'
-                      : activeScenario === 'bitcoin'
-                      ? 'border-orange-300 focus:border-orange-500'
-                      : 'border-blue-300 focus:border-blue-500'
-                  }`}
-                />
-                <Button 
-                  className={`font-semibold ${
-                    activeScenario === 'gold'
-                      ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                      : activeScenario === 'bitcoin'
-                      ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                      : 'bg-blue-500 hover:bg-blue-600 text-white'
-                  }`}
-                  onClick={() => {
-                    if (userEmail) {
-                      // Здесь можно добавить отправку email на сервер
-                      console.log('Email submitted:', userEmail, 'for scenario:', activeScenario);
-                      alert(`Thank you! We'll send you updates about ${scenarios[activeScenario].emailTitle}.`);
-                      window.open(scenarios[activeScenario].ctaLink, '_blank');
-                    }
-                  }}
-                >
-                  Get Started
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {/* AI Interaction Counter */}
-          {isChatOpen && aiInteractionCount > 0 && !activeScenario && (
-            <div className="mb-2 text-center">
-              <span className="text-xs text-gray-500">
-                AI interactions: {aiInteractionCount}/50
-                {aiInteractionCount >= 45 && (
-                  <span className="text-orange-500 font-semibold"> (⚠️ Approaching limit)</span>
-                )}
-                {aiInteractionCount >= 50 && (
-                  <span className="text-red-500 font-semibold"> (❌ Limit reached)</span>
-                )}
-              </span>
-            </div>
-          )}
-          
           
           
           {/* Input field */}
-          <div className={`flex items-center rounded-2xl border-2 border-gray-300 bg-background px-4 py-3 shadow-md ${
-            isInterfaceBlocked ? 'opacity-50' : ''
-          }`}>
-            <Input
-              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base font-semibold placeholder:font-normal"
-              placeholder={isChatOpen ? (isInterfaceBlocked ? "AI is typing..." : "Type your message...") : "Ask Limex AI"}
-              aria-label="Ask Limex"
-              value={isChatOpen ? newMessage : searchValue}
-              onChange={(e) => !isInterfaceBlocked && (isChatOpen ? setNewMessage(e.target.value) : setSearchValue(e.target.value))}
-              onKeyPress={(e) => !isInterfaceBlocked && e.key === 'Enter' && (isChatOpen ? handleSendMessage() : handleKeyPress(e))}
-              disabled={isInterfaceBlocked}
-            />
-            <Button 
-              size="icon" 
-              className={`ml-2 rounded-xl transition-colors ${
-                (isChatOpen ? newMessage.trim() : searchValue.trim())
-                  ? 'bg-black hover:bg-gray-900 text-white shadow-lg' 
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              } ${isInterfaceBlocked ? 'cursor-not-allowed opacity-50' : ''}`}
-              aria-label="Go"
-              onClick={() => {
-                if (isInterfaceBlocked) {
-                  console.log('🚫 Interface is blocked during AI typing');
-                  return;
-                }
-                if (isChatOpen) {
-                  handleSendMessage();
-                } else {
-                  handleSearch();
-                }
-              }}
-              disabled={isInterfaceBlocked || !(isChatOpen ? newMessage.trim() : searchValue.trim())}
-            >
+          <div className="relative">
+            
+            <div className={`flex items-center rounded-2xl border-2 border-gray-300 bg-background px-5 py-4 shadow-md ${
+              isInterfaceBlocked ? 'opacity-50' : ''
+            }`}>
+              <Input
+                className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-lg font-semibold placeholder:font-normal"
+                placeholder={isChatOpen ? (isInterfaceBlocked ? "AI is typing..." : "Type your message...") : "Ask Limex AI"}
+                aria-label="Ask Limex"
+                value={isChatOpen ? newMessage : searchValue}
+                onChange={(e) => !isInterfaceBlocked && (isChatOpen ? setNewMessage(e.target.value) : setSearchValue(e.target.value))}
+                onKeyPress={(e) => !isInterfaceBlocked && e.key === 'Enter' && (isChatOpen ? handleSendMessage() : handleKeyPress(e))}
+                disabled={isInterfaceBlocked}
+              />
+              <Button 
+                size="icon" 
+                className={`ml-2 rounded-xl transition-colors ${
+                  (isChatOpen ? newMessage.trim() : searchValue.trim())
+                    ? 'bg-black hover:bg-gray-900 text-white shadow-lg' 
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                } ${isInterfaceBlocked ? 'cursor-not-allowed opacity-50' : ''}`}
+                aria-label="Go"
+                onClick={() => {
+                  if (isInterfaceBlocked) {
+                    console.log('🚫 Interface is blocked during AI typing');
+                    return;
+                  }
+                  if (isChatOpen) {
+                    handleSendMessage();
+                  } else {
+                    handleSearch();
+                  }
+                }}
+                disabled={isInterfaceBlocked || !(isChatOpen ? newMessage.trim() : searchValue.trim())}
+              >
               <ArrowUpRight className="size-5" />
             </Button>
-            
-            {/* Кнопка для сворачивания чата */}
-            {isChatOpen && isChatExpanded && (
-              <Button 
-                size="sm" 
-                className="ml-2 rounded-xl bg-gray-500 text-white hover:bg-gray-600 transition-colors flex items-center gap-1"
-                onClick={toggleChatExpansion}
-              >
-                <ChevronUp className="size-4" />
-                Collapse
-              </Button>
-            )}
-            
-            {/* Кнопка для раскрытия чата */}
-            {isChatOpen && !isChatExpanded && (
-              <Button 
-                size="sm" 
-                className="ml-2 rounded-xl bg-gray-500 text-white hover:bg-gray-600 transition-colors flex items-center gap-1"
-                onClick={toggleChatExpansion}
-              >
-                <ChevronDown className="size-4" />
-                Expand
-              </Button>
-            )}
             
             {/* Кнопка Show для прокрутки до продуктов */}
             {isChatOpen && showProductsButton && (
@@ -1381,71 +1390,10 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
                 Show
               </Button>
             )}
+            </div>
           </div>
           </div>
         </div>
-      </div>
-      
-      
-      <div className="mx-auto max-w-4xl px-3">
-        {/* Карточка с АЛЬТЕРНАТИВНЫМ вопросом под чатом */}
-        {activeScenario && (
-          <div className="mt-6">
-            <button
-              onClick={() => {
-                // Показываем ДРУГОЙ вопрос (не текущий)
-                const newScenario = activeScenario === 'gold'
-                  ? 'bitcoin' as const
-                  : activeScenario === 'bitcoin'
-                  ? 'gold' as const
-                  : 'gold' as const;
-                
-                // Переключаем сценарий
-                setActiveScenario(newScenario);
-                runScenario(newScenario);
-              }}
-              className="w-full bg-gradient-to-r from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl p-6 shadow-md hover:shadow-lg transition-all duration-300 hover:bg-gray-200 cursor-pointer text-left"
-            >
-              <div className="flex items-start gap-4">
-                {/* Показываем иконку ДРУГОГО сценария */}
-                {activeScenario === 'gold' ? (
-                  <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="50" r="40" fill="#F7931A" stroke="#E07A00" strokeWidth="3"/>
-                    <text x="50" y="65" fontSize="50" fill="white" textAnchor="middle" fontWeight="bold" fontFamily="Arial">₿</text>
-                  </svg>
-                ) : activeScenario === 'bitcoin' ? (
-                  <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                ) : (
-                  <svg className="w-10 h-10 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-                <div className="flex-1">
-                  <p className="text-base md:text-lg font-medium text-gray-800 leading-relaxed">
-                    {activeScenario === 'gold' 
-                      ? 'How can I build a crypto strategy that survives FOMO and flash crashes?'
-                      : activeScenario === 'bitcoin'
-                      ? 'Gold just hit record highs — how can I turn insights like that into real trading experience?'
-                      : 'Gold just hit record highs — how can I turn insights like that into real trading experience?'
-                    }
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-        )}
       </div>
       
       {/* CSS анимации для фраз */}
@@ -1671,7 +1619,7 @@ function FeaturedGrid({ surveyCompleted, productScores }: { surveyCompleted: boo
   };
 
   return (
-    <section className="mt-6">
+    <section className="mt-16">
       {/* CSS анимации */}
       <style>{`
         @keyframes cardPulse {
@@ -1818,6 +1766,7 @@ export default function App() {
   const [activeScenario, setActiveScenario] = useState<'gold' | 'bitcoin' | 'stock' | null>(null);
   const [showInitialCTAs, setShowInitialCTAs] = useState(true);
   const [currentHeaderIndex, setCurrentHeaderIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
   
   // Заголовки с соответствующими сценариями
   const headers = [
@@ -1844,18 +1793,45 @@ export default function App() {
           <text x="50" y="65" fontSize="50" fill="white" textAnchor="middle" fontWeight="bold" fontFamily="Arial">₿</text>
         </svg>
       )
+    },
+    {
+      text: "How can I be confident my trading logic would hold up in a volatile market?",
+      scenario: 'stock' as const,
+      icon: (
+        <svg className="w-12 h-12 md:w-14 md:h-14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+          <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+          <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+          <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+          <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
     }
   ];
   
-  // Автоматическая смена заголовков каждые 10 секунд
+  // Автоматическая смена заголовков каждые 10 секунд с прогресс-баром
   useEffect(() => {
     if (!showInitialCTAs) return; // Не меняем, если CTA скрыты
     
-    const interval = setInterval(() => {
-      setCurrentHeaderIndex((prev) => (prev + 1) % headers.length);
-    }, 10000);
+    // Обновление прогресса каждые 100ms
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        const newProgress = prev + 1; // 100 шагов за 10 секунд = 1% каждые 100ms
+        
+        // Когда прогресс достигает 100%, меняем заголовок
+        if (newProgress >= 100) {
+          setCurrentHeaderIndex((prevIndex) => (prevIndex + 1) % headers.length);
+          return 0; // Сброс прогресса
+        }
+        
+        return newProgress;
+      });
+    }, 100);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(progressInterval);
+    };
   }, [showInitialCTAs, headers.length]);
   
   return (
@@ -1888,9 +1864,19 @@ export default function App() {
                     <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
                       {headers[currentHeaderIndex].text}
                     </h1>
-                    <ArrowUpRight className="size-6 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ArrowUpRight className="size-10 text-gray-400 transition-colors group-hover:text-gray-600" />
                   </div>
                 </button>
+                
+                {/* Progress Timeline */}
+                <div className="mt-6 mx-auto max-w-[100px]">
+                  <div className="h-1 bg-gray-300 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-black transition-all duration-100 ease-linear"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </section>
           )}
@@ -1902,6 +1888,7 @@ export default function App() {
             onProductScoresChanged={setProductScores}
             onScenarioChange={setActiveScenario}
             activeScenario={activeScenario}
+            currentHeaderIndex={currentHeaderIndex}
           />
           
           {/* Показываем карточки продуктов всегда под чатом */}
