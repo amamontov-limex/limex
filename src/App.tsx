@@ -99,6 +99,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
   const [isFromSuggestedQuestion, setIsFromSuggestedQuestion] = useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const messagesContainerRef = React.useRef<HTMLDivElement>(null);
+  const scenarioTimersRef = React.useRef<NodeJS.Timeout[]>([]);
   
   const goalChips = ["Copy Trading", "Education", "Backtest my ideas", "AI instruments for trading"];
   const codingChips = ["I prefer no coding", "I'm fine using AI to generate code", "I want to learn to code strategies myself"];
@@ -418,6 +419,16 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       // Use typing effect for the response with CTA format
       setTimeout(() => {
         typeMessage("Please authorize to continue[CTA]Log in[/CTA][LINK]https://beta.limex.com[/LINK]");
+        
+        // Добавляем disclaimer после ответа
+        setTimeout(() => {
+          const disclaimerMessage = {
+            id: Date.now() + 100,
+            text: "[DISCLAIMER]AI can make mistakes, please DYOR. Not financial advice.[/DISCLAIMER]",
+            sender: 'bot' as const
+          };
+          setMessages(prev => [...prev, disclaimerMessage]);
+        }, 1000);
       }, 100);
       
       setSearchValue(""); // Clear the search field
@@ -895,6 +906,16 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       // Use typing effect for the response with CTA format
       setTimeout(() => {
         typeMessage("Please authorize to continue[CTA]Log in[/CTA][LINK]https://beta.limex.com[/LINK]");
+        
+        // Добавляем disclaimer после ответа
+        setTimeout(() => {
+          const disclaimerMessage = {
+            id: Date.now() + 200,
+            text: "[DISCLAIMER]AI can make mistakes, please DYOR. Not financial advice.[/DISCLAIMER]",
+            sender: 'bot' as const
+          };
+          setMessages(prev => [...prev, disclaimerMessage]);
+        }, 1000);
       }, 100);
     }
   };
@@ -913,12 +934,12 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
     }
   }, [isChatOpen]);
 
-  // Автоматическая прокрутка при появлении новых сообщений
-  useEffect(() => {
-    if (messages.length > 0 && showMessages) {
-      scrollToBottom();
-    }
-  }, [messages, showMessages]);
+  // Автоматическая прокрутка отключена
+  // useEffect(() => {
+  //   if (messages.length > 0 && showMessages) {
+  //     scrollToBottom();
+  //   }
+  // }, [messages, showMessages]);
 
   // Автоматический запуск сценария при выборе из карточек выше
   useEffect(() => {
@@ -933,6 +954,10 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
     if (!scenario) {
       return;
     }
+
+    // Очищаем все предыдущие таймеры
+    scenarioTimersRef.current.forEach(timer => clearTimeout(timer));
+    scenarioTimersRef.current = [];
 
     setActiveScenario(scenarioType);
     setIsFromSuggestedQuestion(true);
@@ -971,7 +996,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
 
     scenario.messages.forEach((step, index) => {
       // Добавляем "AI is thinking..." перед каждым сообщением
-      setTimeout(() => {
+      const thinkingTimer = setTimeout(() => {
         const thinkingMessage = {
           id: Date.now() + index + 500,
           text: "AI is thinking...",
@@ -980,11 +1005,12 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
         };
         setMessages(prev => [...prev, thinkingMessage]);
       }, thinkingDelay);
+      scenarioTimersRef.current.push(thinkingTimer);
       
       // Через 2 секунды удаляем "thinking" и показываем реальное сообщение
       messageDelay = thinkingDelay + 2000;
       
-      setTimeout(() => {
+      const messageTimer = setTimeout(() => {
         // Удаляем "thinking" и добавляем реальное сообщение
         setMessages(prev => prev.filter(msg => !msg.isThinking));
         
@@ -998,19 +1024,32 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
 
         // После последнего сообщения добавляем CTA как сообщение
         if (index === scenario.messages.length - 1) {
-          setTimeout(() => {
+          const ctaTimer = setTimeout(() => {
             const ctaMessage = {
               id: Date.now() + index + 2000,
               text: `[CTA]${scenario.ctaText}[/CTA]`,
               sender: 'bot' as const
             };
             setMessages(prev => [...prev, ctaMessage]);
+            
+            // Добавляем disclaimer после CTA
+            const disclaimerTimer = setTimeout(() => {
+              const disclaimerMessage = {
+                id: Date.now() + index + 3000,
+                text: "[DISCLAIMER]AI can make mistakes, please DYOR. Not financial advice.[/DISCLAIMER]",
+                sender: 'bot' as const
+              };
+              setMessages(prev => [...prev, disclaimerMessage]);
+            }, 500);
+            scenarioTimersRef.current.push(disclaimerTimer);
           }, 2000);
+          scenarioTimersRef.current.push(ctaTimer);
         }
       }, messageDelay);
+      scenarioTimersRef.current.push(messageTimer);
 
-      // Готовим задержку для следующего сообщения
-      thinkingDelay = messageDelay + step.delay;
+      // Готовим задержку для следующего сообщения (2000ms thinking + минимум 500ms после показа сообщения)
+      thinkingDelay = messageDelay + 500;
     });
   };
 
@@ -1042,7 +1081,7 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
         {/* Chat Container - строго фиксированная высота */}
         <div className={`flex flex-col transition-all duration-[2000ms] ease-out ${
           isChatOpen 
-            ? (activeScenario ? 'h-[650px] max-h-[650px]' : 'h-[450px] max-h-[450px]')
+            ? (activeScenario ? 'h-[600px] max-h-[600px]' : 'h-[450px] max-h-[450px]')
             : 'h-[128px] max-h-[128px]'
         }`}>
           {/* Messages */}
@@ -1090,6 +1129,20 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
                               <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
                             </div>
                           </div>
+                        ) : message.text.includes('[DISCLAIMER]') ? (
+                          // Рендерим disclaimer как красивое уведомление
+                          (() => {
+                            const disclaimerText = message.text.replace('[DISCLAIMER]', '').replace('[/DISCLAIMER]', '').trim();
+                            
+                            return (
+                              <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                <svg className="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <span className="text-xs text-yellow-800 font-medium">{disclaimerText}</span>
+                              </div>
+                            );
+                          })()
                         ) : message.text.includes('[CTA]') ? (
                           // Рендерим текст и CTA кнопку
                           (() => {
@@ -1145,85 +1198,6 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
 
           {/* Search Interface - фиксированное внизу */}
           <div className="flex-shrink-0">
-          {/* Also Ask Section - над полем ввода, показываем только для сценариев */}
-          {isChatOpen && isFromSuggestedQuestion && (() => {
-            // Создаем массив всех вопросов с их данными
-            const allQuestions = [
-              {
-                scenario: 'gold' as const,
-                text: "Gold just hit record highs — how can I turn insights like that into real trading experience?",
-                icon: (
-                  <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
-                    <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )
-              },
-              {
-                scenario: 'bitcoin' as const,
-                text: "How can I build a crypto strategy that survives FOMO and flash crashes?",
-                icon: (
-                  <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="50" cy="50" r="40" fill="#F7931A" stroke="#E07A00" strokeWidth="3"/>
-                    <text x="50" y="65" fontSize="50" fill="white" textAnchor="middle" fontWeight="bold" fontFamily="Arial">₿</text>
-                  </svg>
-                )
-              },
-              {
-                scenario: 'stock' as const,
-                text: "How can I be confident my trading logic would hold up in a volatile market?",
-                icon: (
-                  <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="20" y="15" width="60" height="70" rx="3" fill="#8B7355" stroke="#5D4E37" strokeWidth="2"/>
-                    <rect x="25" y="20" width="50" height="60" fill="#F5E6D3"/>
-                    <line x1="30" y1="30" x2="70" y2="30" stroke="#8B7355" strokeWidth="2"/>
-                    <line x1="30" y1="40" x2="70" y2="40" stroke="#8B7355" strokeWidth="2"/>
-                    <line x1="30" y1="50" x2="70" y2="50" stroke="#8B7355" strokeWidth="2"/>
-                    <line x1="30" y1="60" x2="60" y2="60" stroke="#8B7355" strokeWidth="2"/>
-                    <circle cx="50" cy="70" r="3" fill="#8B7355"/>
-                  </svg>
-                )
-              }
-            ];
-            
-            // Фильтруем вопросы - исключаем АКТИВНЫЙ сценарий (показываем только 2 других)
-            const filteredQuestions = allQuestions.filter((q) => q.scenario !== activeScenario);
-            
-            return (
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold mb-2 text-gray-700 px-2">Also Ask</h3>
-                <div className="space-y-2">
-                  {filteredQuestions.map((question, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        // Устанавливаем флаг, что это предложенный вопрос
-                        setIsFromSuggestedQuestion(true);
-                        
-                        // Запускаем соответствующий сценарий
-                        runScenario(question.scenario);
-                      }}
-                      className="w-full bg-white border border-gray-200 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-200 hover:border-gray-300 cursor-pointer text-left group"
-                    >
-                      <div className="flex items-center gap-2">
-                        {question.icon}
-                        <p className="text-xs font-normal text-gray-700 group-hover:text-gray-900 flex-1">
-                          {question.text}
-                        </p>
-                        <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
           
           {isChatOpen && showGoalChips && (
             <div className="mb-4 flex flex-wrap items-center justify-center gap-3">
@@ -1380,6 +1354,88 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
           </div>
           </div>
         </div>
+      </div>
+      
+      {/* Also Ask Section - под полем ввода чата */}
+      <div className="mx-auto max-w-5xl px-3">
+        {isChatOpen && isFromSuggestedQuestion && (() => {
+          // Создаем массив всех вопросов с их данными
+          const allQuestions = [
+            {
+              scenario: 'gold' as const,
+              text: "Gold just hit record highs — how can I turn insights like that into real trading experience?",
+              icon: (
+                <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="10" y="60" width="15" height="30" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                  <rect x="30" y="45" width="15" height="45" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                  <rect x="50" y="30" width="15" height="60" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                  <rect x="70" y="15" width="15" height="75" fill="#D4AF37" stroke="#B8860B" strokeWidth="2"/>
+                  <path d="M 17 75 L 37 60 L 57 45 L 77 20 L 90 10" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M 85 15 L 90 10 L 95 15" stroke="#B8860B" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )
+            },
+            {
+              scenario: 'bitcoin' as const,
+              text: "How can I build a crypto strategy that survives FOMO and flash crashes?",
+              icon: (
+                <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="50" cy="50" r="40" fill="#F7931A" stroke="#E07A00" strokeWidth="3"/>
+                  <text x="50" y="65" fontSize="50" fill="white" textAnchor="middle" fontWeight="bold" fontFamily="Arial">₿</text>
+                </svg>
+              )
+            },
+            {
+              scenario: 'stock' as const,
+              text: "How can I be confident my trading logic would hold up in a volatile market?",
+              icon: (
+                <svg className="w-6 h-6 flex-shrink-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="20" y="15" width="60" height="70" rx="3" fill="#8B7355" stroke="#5D4E37" strokeWidth="2"/>
+                  <rect x="25" y="20" width="50" height="60" fill="#F5E6D3"/>
+                  <line x1="30" y1="30" x2="70" y2="30" stroke="#8B7355" strokeWidth="2"/>
+                  <line x1="30" y1="40" x2="70" y2="40" stroke="#8B7355" strokeWidth="2"/>
+                  <line x1="30" y1="50" x2="70" y2="50" stroke="#8B7355" strokeWidth="2"/>
+                  <line x1="30" y1="60" x2="60" y2="60" stroke="#8B7355" strokeWidth="2"/>
+                  <circle cx="50" cy="70" r="3" fill="#8B7355"/>
+                </svg>
+              )
+            }
+          ];
+          
+          // Фильтруем вопросы - исключаем АКТИВНЫЙ сценарий (показываем только 2 других)
+          const filteredQuestions = allQuestions.filter((q) => q.scenario !== activeScenario);
+          
+          return (
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold mb-2 text-gray-700 px-2">Also Ask</h3>
+              <div className="space-y-2">
+                {filteredQuestions.map((question, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      // Устанавливаем флаг, что это предложенный вопрос
+                      setIsFromSuggestedQuestion(true);
+                      
+                      // Запускаем соответствующий сценарий
+                      runScenario(question.scenario);
+                    }}
+                    className="w-full bg-white border border-gray-200 rounded-lg p-2 shadow-sm hover:shadow-md transition-all duration-200 hover:border-gray-300 cursor-pointer text-left group"
+                  >
+                    <div className="flex items-center gap-2">
+                      {question.icon}
+                      <p className="text-xs font-normal text-gray-700 group-hover:text-gray-900 flex-1">
+                        {question.text}
+                      </p>
+                      <svg className="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
       
       {/* CSS анимации для фраз */}
