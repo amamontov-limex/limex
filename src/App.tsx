@@ -958,6 +958,9 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
     // Очищаем все предыдущие таймеры
     scenarioTimersRef.current.forEach(timer => clearTimeout(timer));
     scenarioTimersRef.current = [];
+    
+    // Очищаем все thinking сообщения
+    setMessages(prev => prev.filter(msg => !msg.isThinking));
 
     setActiveScenario(scenarioType);
     setIsFromSuggestedQuestion(true);
@@ -985,6 +988,8 @@ function CenterSearch({ isChatOpen, setIsChatOpen, onSurveyCompleted, onProductS
       text: userMessageText,
       sender: 'user' as const
     };
+    
+    // ПОЛНОСТЬЮ заменяем сообщения новым вопросом пользователя
     setMessages([userMessage]);
     if (!isChatOpen) {
       setIsChatOpen(true);
